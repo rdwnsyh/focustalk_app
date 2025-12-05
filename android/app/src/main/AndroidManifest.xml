@@ -57,8 +57,9 @@
         <!-- FocusTalk Background Service -->
         <service
             android:name="id.flutter.flutter_background_service.BackgroundService"
-            android:exported="false"
-            android:foregroundServiceType="specialUse">
+            android:exported="true"
+            android:foregroundServiceType="specialUse"
+            tools:replace="android:exported">
             <property
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
                 android:value="App monitoring for academic focus" />
