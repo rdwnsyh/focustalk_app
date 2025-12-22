@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_overlay_window/flutter_overlay_window.dart';
 import 'package:usage_stats/usage_stats.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:focustalk_app/screens/database_test_screen.dart';
 
 class PermissionScreen extends StatefulWidget {
   const PermissionScreen({super.key});
@@ -12,6 +14,7 @@ class PermissionScreen extends StatefulWidget {
 class _PermissionScreenState extends State<PermissionScreen> {
   bool _overlayPermissionGranted = false;
   bool _usageAccessGranted = false;
+  bool _notificationPermissionGranted = false;
   bool _isChecking = true;
 
   @override
@@ -20,7 +23,7 @@ class _PermissionScreenState extends State<PermissionScreen> {
     _checkPermissions();
   }
 
-  /// Check both overlay and usage access permissions
+  /// Check all required permissions
   Future<void> _checkPermissions() async {
     setState(() {
       _isChecking = true;
@@ -33,9 +36,13 @@ class _PermissionScreenState extends State<PermissionScreen> {
       // Check usage access permission
       final usageStatus = await UsageStats.checkUsagePermission() ?? false;
 
+      // Check notification permission (Android 13+)
+      final notificationStatus = await Permission.notification.isGranted;
+
       setState(() {
         _overlayPermissionGranted = overlayStatus;
         _usageAccessGranted = usageStatus;
+        _notificationPermissionGranted = notificationStatus;
         _isChecking = false;
       });
     } catch (e) {
@@ -105,25 +112,48 @@ class _PermissionScreenState extends State<PermissionScreen> {
     }
   }
 
+  /// Request notification permission (Android 13+)
+  Future<void> _requestNotificationPermission() async {
+    try {
+      final status = await Permission.notification.request();
+      setState(() {
+        _notificationPermissionGranted = status.isGranted;
+      });
+
+      if (status.isGranted && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Notification permission granted!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error requesting notification permission: $e'),
+          ),
+        );
+      }
+    }
+  }
+
   /// Navigate to home screen when both permissions granted
   void _continueToApp() {
-    // TODO: Navigate to home screen
-    // Navigator.pushReplacement(
-    //   context,
-    //   MaterialPageRoute(builder: (context) => const HomeScreen()),
-    // );
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Ready to continue! (Navigation not implemented yet)'),
-        backgroundColor: Colors.blue,
-      ),
+    // Navigate to database test screen for now
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const DatabaseTestScreen()),
     );
   }
 
   @override
   Widget build(BuildContext context) {
     final allPermissionsGranted =
-        _overlayPermissionGranted && _usageAccessGranted;
+        _overlayPermissionGranted &&
+        _usageAccessGranted &&
+        _notificationPermissionGranted;
 
     return Scaffold(
       backgroundColor: Colors.grey[100],
@@ -165,6 +195,25 @@ class _PermissionScreenState extends State<PermissionScreen> {
                       style: TextStyle(fontSize: 14, color: Colors.grey[600]),
                     ),
                     const SizedBox(height: 32),
+
+                    // Notification Permission Card (Android 13+)
+                    _buildPermissionCard(
+                      icon: Icons.notifications_outlined,
+                      title: 'Notification Permission',
+                      description:
+                          'Allows FocusTalk to show background service notifications',
+                      isGranted: _notificationPermissionGranted,
+                      buttonText:
+                          _notificationPermissionGranted
+                              ? 'Granted ✓'
+                              : 'Grant Notification',
+                      onPressed:
+                          _notificationPermissionGranted
+                              ? null
+                              : _requestNotificationPermission,
+                    ),
+
+                    const SizedBox(height: 16),
 
                     // Overlay Permission Card
                     _buildPermissionCard(
