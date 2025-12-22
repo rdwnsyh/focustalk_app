@@ -18,9 +18,8 @@ void overlayMain() {
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Initialize database and seed dummy data
-  final dbHelper = DatabaseHelper();
-  await dbHelper.seedDummyData();
+  // Initialize database and seed data (apps + questions)
+  await DatabaseHelper().seedDatabase();
 
   runApp(const FocusTalkApp());
 }

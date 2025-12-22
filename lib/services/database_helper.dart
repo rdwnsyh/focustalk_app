@@ -46,7 +46,8 @@ class DatabaseHelper {
           option_a TEXT NOT NULL,
           option_b TEXT NOT NULL,
           option_c TEXT,
-          option_d TEXT
+          option_d TEXT,
+          shown_count INTEGER DEFAULT 0
         )
       ''');
     }
@@ -64,6 +65,7 @@ class DatabaseHelper {
     ''');
 
     // Create questions table with multiple choice options
+    // NOTE: If you change this schema, uninstall the app first to reset the database!
     await db.execute('''
       CREATE TABLE questions (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -72,13 +74,20 @@ class DatabaseHelper {
         option_a TEXT NOT NULL,
         option_b TEXT NOT NULL,
         option_c TEXT,
-        option_d TEXT
+        option_d TEXT,
+        shown_count INTEGER DEFAULT 0
       )
     ''');
   }
 
-  /// Seed dummy data for testing
-  Future<void> seedDummyData() async {
+  /// Seed database with apps and questions
+  Future<void> seedDatabase() async {
+    await _seedApps();
+    await _seedQuestions();
+  }
+
+  /// Seed dummy apps for testing
+  Future<void> _seedApps() async {
     final db = await database;
 
     // Insert dummy apps (INSERT OR IGNORE to avoid duplicates)
@@ -118,14 +127,11 @@ class DatabaseHelper {
       );
     }
 
-    // Seed questions if empty
-    await seedQuestions();
-
-    print('✅ Dummy data seeded successfully!');
+    print('✅ Apps seeded successfully!');
   }
 
-  /// Seed English quiz questions (Vocab & Grammar)
-  Future<void> seedQuestions() async {
+  /// Seed English quiz questions - only if table is empty
+  Future<void> _seedQuestions() async {
     final db = await database;
 
     // Check if questions already exist
@@ -234,12 +240,13 @@ class DatabaseHelper {
     print('📚 ${questionsToInsert.length} questions seeded successfully!');
   }
 
-  /// Get a random question from the database
+  /// Get a random question using Least Recently Used logic
+  /// Questions with lower shown_count are prioritized
   Future<Map<String, dynamic>?> getRandomQuestion() async {
     final db = await database;
     final List<Map<String, dynamic>> results = await db.query(
       'questions',
-      orderBy: 'RANDOM()',
+      orderBy: 'shown_count ASC, RANDOM()',
       limit: 1,
     );
 
@@ -247,6 +254,16 @@ class DatabaseHelper {
       return results.first;
     }
     return null;
+  }
+
+  /// Mark question as solved (increment shown_count)
+  /// This moves the question to the back of the queue
+  Future<void> markQuestionAsSolved(int questionId) async {
+    final db = await database;
+    await db.rawUpdate(
+      'UPDATE questions SET shown_count = shown_count + 1 WHERE id = ?',
+      [questionId],
+    );
   }
 
   /// Get category by package name
@@ -311,21 +328,6 @@ class DatabaseHelper {
   Future<List<Map<String, dynamic>>> getAllQuestions() async {
     final db = await database;
     return await db.query('questions');
-  }
-
-  /// Get random question
-  Future<Map<String, dynamic>?> getRandomQuestion() async {
-    final db = await database;
-    final List<Map<String, dynamic>> questions = await db.query(
-      'questions',
-      orderBy: 'RANDOM()',
-      limit: 1,
-    );
-
-    if (questions.isNotEmpty) {
-      return questions.first;
-    }
-    return null;
   }
 
   /// Insert question

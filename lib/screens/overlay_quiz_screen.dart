@@ -22,6 +22,12 @@ class _OverlayQuizScreenState extends State<OverlayQuizScreen> {
   }
 
   Future<void> _loadQuestion() async {
+    setState(() {
+      _isLoading = true;
+      _isAnswered = false;
+      _errorMessage = null;
+    });
+
     try {
       final dbHelper = DatabaseHelper();
       final question = await dbHelper.getRandomQuestion();
@@ -41,26 +47,28 @@ class _OverlayQuizScreenState extends State<OverlayQuizScreen> {
     }
   }
 
-  void _handleAnswer(String selectedAnswer) {
-    if (_questionData == null) return;
+  void _handleAnswer(String selectedAnswer) async {
+    if (_questionData == null || _isAnswered) return;
 
     final correctAnswer = _questionData!['correct_answer'] as String;
+    final questionId = _questionData!['id'] as int;
 
     if (selectedAnswer == correctAnswer) {
-      // Correct answer - close overlay
+      // Correct answer - mark as solved and close overlay
+      final dbHelper = DatabaseHelper();
+      await dbHelper.markQuestionAsSolved(questionId);
+
       FlutterOverlayWindow.closeOverlay();
     } else {
-      // Wrong answer - show feedback
+      // Wrong answer - show feedback and load new question
       setState(() {
         _isAnswered = true;
       });
 
-      // Reset after 2 seconds
-      Future.delayed(const Duration(seconds: 2), () {
+      // Show "Wrong Answer!" message for 0.8 seconds, then load new question
+      Future.delayed(const Duration(milliseconds: 800), () {
         if (mounted) {
-          setState(() {
-            _isAnswered = false;
-          });
+          _loadQuestion(); // Load new question immediately
         }
       });
     }
