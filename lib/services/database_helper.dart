@@ -23,8 +23,10 @@ class DatabaseHelper {
   Future<Database> _initDatabase() async {
     String path = join(await getDatabasesPath(), 'focustalk.db');
     // For development: Delete old database when schema changes
-    // Comment this out in production
+    // Uncomment ONLY when you need to reset the database completely:
     // await deleteDatabase(path);
+    // print('🗑️ Old database deleted - will recreate with fresh data');
+
     return await openDatabase(
       path,
       version: 3,
@@ -105,38 +107,45 @@ class DatabaseHelper {
         'package_name': 'com.instagram.android',
         'category': 'SOCIAL',
         'is_blocked': 0,
+        'is_active': 1,
       },
       {
         'package_name': 'com.facebook.katana',
         'category': 'SOCIAL',
         'is_blocked': 0,
+        'is_active': 1,
       },
       {
         'package_name': 'com.whatsapp',
         'category': 'COMMUNICATION',
         'is_blocked': 0,
+        'is_active': 1,
       },
       {
         'package_name': 'com.mobile.legends',
         'category': 'GAME',
         'is_blocked': 0,
+        'is_active': 1,
       },
       {
         'package_name': 'com.google.android.youtube',
         'category': 'ENTERTAINMENT',
         'is_blocked': 0,
+        'is_active': 1,
       },
     ];
 
+    print('📝 Inserting ${appsToInsert.length} apps into database...');
     for (var app in appsToInsert) {
       await db.insert(
         'app_dictionary',
         app,
-        conflictAlgorithm: ConflictAlgorithm.ignore,
+        conflictAlgorithm:
+            ConflictAlgorithm.replace, // Use REPLACE to ensure update
       );
     }
 
-    print('✅ Apps seeded successfully!');
+    print('✅ ${appsToInsert.length} apps seeded successfully!');
   }
 
   /// Seed English quiz questions - only if table is empty
@@ -149,9 +158,11 @@ class DatabaseHelper {
     );
 
     if (count != null && count > 0) {
-      print('📚 Questions already exist, skipping seed');
+      print('📚 Questions already exist ($count questions), skipping seed');
       return;
     }
+
+    print('📝 Inserting quiz questions into database...');
 
     // Insert English quiz questions
     final questionsToInsert = [

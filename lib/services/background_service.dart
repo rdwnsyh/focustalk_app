@@ -5,6 +5,7 @@ import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:flutter_overlay_window/flutter_overlay_window.dart';
 import 'package:usage_stats/usage_stats.dart';
 import 'package:focustalk_app/services/database_helper.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 // ==================== CRITICAL FIX ====================
 // onStart MUST be a TOP-LEVEL FUNCTION (not inside a class)
@@ -44,7 +45,15 @@ void onStart(ServiceInstance service) async {
   }
   // ==========================================================================
 
+  // Initialize SharedPreferences for reward time tracking
+  final prefs = await SharedPreferences.getInstance();
+  print('✅ SharedPreferences initialized in background service');
+
+  // Initialize database and ensure it's seeded (important for background isolate)
   final dbHelper = DatabaseHelper();
+  await dbHelper.seedDatabase();
+  print('✅ Database initialized and seeded in background service');
+
   String? lastDetectedApp;
   DateTime? lastDetectionTime;
 
@@ -91,10 +100,10 @@ void onStart(ServiceInstance service) async {
           return;
         }
 
-        // Only process if this is a new app or enough time has passed
+        // Only process if this is a new app or 7 seconds have passed
         if (currentApp != lastDetectedApp ||
             lastDetectionTime == null ||
-            now.difference(lastDetectionTime!).inSeconds > 2) {
+            now.difference(lastDetectionTime!).inSeconds >= 7) {
           lastDetectedApp = currentApp;
           lastDetectionTime = now;
 
@@ -137,6 +146,13 @@ void onStart(ServiceInstance service) async {
                 print('🎯 Showing overlay quiz...');
 
                 try {
+                  // Save current blocked app package name for reward time tracking
+                  await prefs.setString(
+                    'current_blocked_app',
+                    currentApp ?? '',
+                  );
+                  print('💾 Saved current blocked app: $currentApp');
+
                   // Show the overlay with full screen coverage
                   await FlutterOverlayWindow.showOverlay(
                     enableDrag: false,

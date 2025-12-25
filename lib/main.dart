@@ -6,8 +6,14 @@ import 'package:focustalk_app/services/background_service.dart';
 import 'package:focustalk_app/screens/overlay_quiz_screen.dart';
 
 @pragma("vm:entry-point")
-void overlayMain() {
+void overlayMain() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Seed database in overlay isolate (runs separately from main app)
+  print('🎯 Overlay isolate starting - seeding database...');
+  await DatabaseHelper().seedDatabase();
+  print('✅ Database seeded in overlay isolate');
+
   runApp(
     const MaterialApp(
       debugShowCheckedModeBanner: false,

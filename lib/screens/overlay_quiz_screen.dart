@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_overlay_window/flutter_overlay_window.dart';
 import 'package:focustalk_app/services/database_helper.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class OverlayQuizScreen extends StatefulWidget {
   const OverlayQuizScreen({super.key});
@@ -58,6 +59,7 @@ class _OverlayQuizScreenState extends State<OverlayQuizScreen> {
       final dbHelper = DatabaseHelper();
       await dbHelper.markQuestionAsSolved(questionId);
 
+      print('✅ Correct answer! Closing overlay. Will reappear in 7 seconds.');
       FlutterOverlayWindow.closeOverlay();
     } else {
       // Wrong answer - show feedback and load new question
@@ -71,6 +73,32 @@ class _OverlayQuizScreenState extends State<OverlayQuizScreen> {
           _loadQuestion(); // Load new question immediately
         }
       });
+    }
+  }
+
+  /// Grant 7-second reward time for the current app (DEMO)
+  Future<void> _grantRewardTime() async {
+    try {
+      // Get the package name from SharedPreferences (saved by background service)
+      final prefs = await SharedPreferences.getInstance();
+      final packageName = prefs.getString('current_blocked_app');
+
+      if (packageName == null || packageName.isEmpty) {
+        print('⚠️ Warning: Could not get package name for reward time');
+        return;
+      }
+
+      // Calculate expiry timestamp (7 SECONDS from now for DEMO)
+      final expiryTime =
+          DateTime.now().add(const Duration(seconds: 7)).millisecondsSinceEpoch;
+
+      // Save unlock expiry to SharedPreferences
+      await prefs.setInt('unlock_expiry_$packageName', expiryTime);
+
+      print('✅ App Unlocked for 7 seconds: $packageName');
+      print('   Expiry: ${DateTime.fromMillisecondsSinceEpoch(expiryTime)}');
+    } catch (e) {
+      print('❌ Error granting reward time: $e');
     }
   }
 
