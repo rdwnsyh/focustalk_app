@@ -29,15 +29,18 @@ void onStart(ServiceInstance service) async {
   DartPluginRegistrant.ensureInitialized();
   // ======================================================
 
-  print('🚀 FocusTalk Background Service Started');
+  print(
+    '🚀🚀🚀 FocusTalk Background Service Started - onStart EXECUTED 🚀🚀🚀',
+  );
 
   // ==================== NOTIFICATION FIX FOR ANDROID 13+ ====================
   // Create notification immediately to prevent crash
   if (service is AndroidServiceInstance) {
     service.setForegroundNotificationInfo(
       title: "FocusTalk Active",
-      content: "Initializing monitoring...",
+      content: "Monitoring is running...",
     );
+    print('✅ Foreground notification set successfully');
   }
   // ==========================================================================
 
@@ -46,8 +49,14 @@ void onStart(ServiceInstance service) async {
   DateTime? lastDetectionTime;
 
   // Listen for stop command
+  service.on('stopService').listen((event) {
+    print('⏹️ Service stop requested via stopService');
+    service.stopSelf();
+  });
+
+  // Listen for legacy stop command (backward compatibility)
   service.on('stop').listen((event) {
-    print('⏹️ Service stop requested');
+    print('⏹️ Service stop requested via stop');
     service.stopSelf();
   });
 
@@ -102,13 +111,28 @@ void onStart(ServiceInstance service) async {
             // ==================== INTERVENTION LOGIC ====================
             // Check if overlay should be shown for GAME or SOCIAL apps
             if (category == 'GAME' || category == 'SOCIAL') {
-              print('⚠️ Triggering intervention for category: $category');
+              // ✅ NEW: Check if blocking is enabled for this app
+              final isActive = await dbHelper.isAppActive(currentApp ?? '');
 
-              // Check if overlay is already active
-              final isActive = await FlutterOverlayWindow.isActive();
-              print('🔎 Overlay active status: $isActive');
+              if (isActive == null) {
+                print('⚠️ App not found in database: $currentApp');
+                return;
+              }
 
               if (!isActive) {
+                print('🔓 Blocking disabled for $currentApp (is_active = 0)');
+                return;
+              }
+
+              print(
+                '⚠️ Triggering intervention for category: $category (is_active = 1)',
+              );
+
+              // Check if overlay is already active
+              final overlayIsActive = await FlutterOverlayWindow.isActive();
+              print('🔎 Overlay active status: $overlayIsActive');
+
+              if (!overlayIsActive) {
                 print('🚨 Blocked app detected! Category: $category');
                 print('🎯 Showing overlay quiz...');
 
@@ -178,8 +202,14 @@ class BackgroundServiceManager {
 
   /// Initialize and configure the background service
   Future<void> initializeService() async {
-    final service = FlutterBackgroundService();
+    print('═══════════════════════════════════════════════════════');
+    print('🔧 BackgroundServiceManager.initializeService() CALLED');
+    print('═══════════════════════════════════════════════════════');
 
+    final service = FlutterBackgroundService();
+    print('📦 FlutterBackgroundService instance created');
+
+    print('⚙️ Configuring service with autoStart=false...');
     await service.configure(
       iosConfiguration: IosConfiguration(
         autoStart: false,
@@ -197,18 +227,29 @@ class BackgroundServiceManager {
         foregroundServiceNotificationId: 888,
       ),
     );
+    print('✅ Service configuration completed');
+    print(
+      '📝 Note: Service will NOT auto-start. Use toggle to start manually.',
+    );
   }
 
   /// Start the background service
   Future<void> startService() async {
+    print('═══════════════════════════════════════════════════════');
+    print('▶️ BackgroundServiceManager.startService() CALLED');
+    print('═══════════════════════════════════════════════════════');
+
     final service = FlutterBackgroundService();
+    print('📞 Calling service.startService()...');
     await service.startService();
+    print('✅ service.startService() completed');
+    print('⏳ Waiting for onStart() callback to be triggered by Android...');
   }
 
   /// Stop the background service
   Future<void> stopService() async {
     final service = FlutterBackgroundService();
-    service.invoke('stop');
+    service.invoke('stopService');
   }
 
   /// Check if service is running

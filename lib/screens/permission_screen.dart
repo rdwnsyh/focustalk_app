@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_overlay_window/flutter_overlay_window.dart';
 import 'package:usage_stats/usage_stats.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:focustalk_app/screens/database_test_screen.dart';
+import 'package:focustalk_app/screens/home_screen.dart';
 
 class PermissionScreen extends StatefulWidget {
   const PermissionScreen({super.key});
@@ -139,12 +139,11 @@ class _PermissionScreenState extends State<PermissionScreen> {
     }
   }
 
-  /// Navigate to home screen when both permissions granted
+  /// Navigate to home screen when all permissions granted
   void _continueToApp() {
-    // Navigate to database test screen for now
-    Navigator.push(
+    Navigator.pushReplacement(
       context,
-      MaterialPageRoute(builder: (context) => const DatabaseTestScreen()),
+      MaterialPageRoute(builder: (context) => const HomeScreen()),
     );
   }
 

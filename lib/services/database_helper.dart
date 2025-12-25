@@ -27,7 +27,7 @@ class DatabaseHelper {
     // await deleteDatabase(path);
     return await openDatabase(
       path,
-      version: 2,
+      version: 3,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
@@ -51,6 +51,14 @@ class DatabaseHelper {
         )
       ''');
     }
+
+    if (oldVersion < 3) {
+      // Add is_active column to app_dictionary for toggle ON/OFF
+      await db.execute(
+        'ALTER TABLE app_dictionary ADD COLUMN is_active INTEGER DEFAULT 1',
+      );
+      print('✅ Migration: Added is_active column to app_dictionary');
+    }
   }
 
   /// Create tables
@@ -60,7 +68,8 @@ class DatabaseHelper {
       CREATE TABLE app_dictionary (
         package_name TEXT PRIMARY KEY,
         category TEXT NOT NULL,
-        is_blocked INTEGER DEFAULT 0
+        is_blocked INTEGER DEFAULT 0,
+        is_active INTEGER DEFAULT 1
       )
     ''');
 
@@ -283,10 +292,43 @@ class DatabaseHelper {
     return null; // App not found in dictionary
   }
 
-  /// Get all apps from dictionary
+  /// Toggle app blocking status (ON/OFF)
+  /// @param packageName: The app package name
+  /// @param isActive: true = blocking enabled, false = blocking disabled
+  Future<void> toggleAppStatus(String packageName, bool isActive) async {
+    final db = await database;
+    await db.update(
+      'app_dictionary',
+      {'is_active': isActive ? 1 : 0},
+      where: 'package_name = ?',
+      whereArgs: [packageName],
+    );
+    print('🔄 Updated $packageName: is_active = ${isActive ? 1 : 0}');
+  }
+
+  /// Get all apps from app_dictionary
+  /// Returns: List of maps containing package_name, category, is_blocked, is_active
   Future<List<Map<String, dynamic>>> getAllApps() async {
     final db = await database;
     return await db.query('app_dictionary');
+  }
+
+  /// Check if app blocking is active
+  /// Returns: true if blocking is ON, false if OFF, null if app not found
+  Future<bool?> isAppActive(String packageName) async {
+    final db = await database;
+    final List<Map<String, dynamic>> results = await db.query(
+      'app_dictionary',
+      columns: ['is_active'],
+      where: 'package_name = ?',
+      whereArgs: [packageName],
+      limit: 1,
+    );
+
+    if (results.isNotEmpty) {
+      return results.first['is_active'] == 1;
+    }
+    return null;
   }
 
   /// Add or update app in dictionary
