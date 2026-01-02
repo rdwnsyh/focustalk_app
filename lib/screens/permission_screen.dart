@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_overlay_window/flutter_overlay_window.dart';
 import 'package:usage_stats/usage_stats.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:focustalk_app/screens/home_screen.dart';
+import 'package:focustalk_app/screens/splash_screen.dart';
 
 class PermissionScreen extends StatefulWidget {
   const PermissionScreen({super.key});
@@ -143,7 +143,7 @@ class _PermissionScreenState extends State<PermissionScreen> {
   void _continueToApp() {
     Navigator.pushReplacement(
       context,
-      MaterialPageRoute(builder: (context) => const HomeScreen()),
+      MaterialPageRoute(builder: (context) => const SplashScreen()),
     );
   }
 

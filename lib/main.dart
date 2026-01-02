@@ -4,6 +4,7 @@ import 'package:focustalk_app/screens/permission_screen.dart';
 import 'package:focustalk_app/services/database_helper.dart';
 import 'package:focustalk_app/services/background_service.dart';
 import 'package:focustalk_app/screens/overlay_quiz_screen.dart';
+import 'package:focustalk_app/utils/app_colors.dart';
 
 @pragma("vm:entry-point")
 void overlayMain() async {
@@ -15,9 +16,10 @@ void overlayMain() async {
   print('✅ Database seeded in overlay isolate');
 
   runApp(
-    const MaterialApp(
+    MaterialApp(
       debugShowCheckedModeBanner: false,
-      home: Material(child: OverlayQuizScreen()),
+      theme: AppTheme.themeData,
+      home: const Material(child: OverlayQuizScreen()),
     ),
   );
 }
@@ -52,10 +54,7 @@ class FocusTalkApp extends StatelessWidget {
     return MaterialApp(
       title: 'FocusTalk',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
-        useMaterial3: true,
-      ),
+      theme: AppTheme.themeData,
       home: const PermissionScreen(),
     );
   }

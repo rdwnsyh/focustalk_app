@@ -24,7 +24,7 @@ android {
         applicationId = "com.example.focustalk_app"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = 22  // Required by usage_stats plugin
+        minSdk = flutter.minSdkVersion  // Required by usage_stats plugin
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName

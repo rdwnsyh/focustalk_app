@@ -159,6 +159,21 @@ class _HomeScreenState extends State<HomeScreen> {
                     // ==================== PROTECTION STATUS CARD ====================
                     _buildProtectionStatusCard(),
 
+                    const SizedBox(height: 16),
+
+                    // Quick Actions Grid
+                    _buildQuickActionsGrid(),
+
+                    const SizedBox(height: 16),
+
+                    // Streak Card
+                    _buildStreakCard(),
+
+                    const SizedBox(height: 16),
+
+                    // Top Apps Today
+                    _buildTopAppsToday(),
+
                     const SizedBox(height: 24),
 
                     // ==================== MONITORED APPS SECTION ====================
@@ -178,13 +193,13 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  /// Header with blue gradient background
+  /// Header with orange gradient background
   Widget _buildHeader() {
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [Colors.blueAccent, Colors.blue.shade700],
+          colors: [Colors.orangeAccent, Colors.deepOrange],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -204,7 +219,7 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Top Row: Profile Icon and Notification Bell
+          // Top Row: Avatar + Greeting and Notification Bell
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -215,13 +230,26 @@ class _HomeScreenState extends State<HomeScreen> {
                     child: const Icon(Icons.person, color: Colors.white),
                   ),
                   const SizedBox(width: 12),
-                  const Text(
-                    'Arsyandi',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                    ),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: const [
+                      Text(
+                        'Good Afternoon, Arsyandi!',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      SizedBox(height: 2),
+                      Text(
+                        'Stay focused and productive',
+                        style: TextStyle(
+                          color: Colors.white70,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -235,23 +263,118 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ],
           ),
-          const SizedBox(height: 24),
-          // Greeting Text
-          const Text(
-            'Good Afternoon!',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 28,
-              fontWeight: FontWeight.bold,
+        ],
+      ),
+    );
+  }
+
+  /// Streak card with gradient and 7-day indicators
+  Widget _buildStreakCard() {
+    final completed = [true, true, true, true, true, false, false];
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(colors: [Colors.redAccent, Colors.deepOrangeAccent]),
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 12, offset: const Offset(0,6)),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: const [
+                    Text('7 Days  ', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+                    Text('Keep it up! 🔥', style: TextStyle(color: Colors.white70, fontSize: 14)),
+                  ],
+                ),
+                const Text('Streak', style: TextStyle(color: Colors.white70)),
+              ],
             ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Stay focused and productive',
-            style: TextStyle(
-              color: Colors.white.withOpacity(0.9),
-              fontSize: 16,
+            const SizedBox(height: 12),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: List.generate(7, (i) {
+                final labels = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+                final done = completed[i];
+                return Column(
+                  children: [
+                    CircleAvatar(
+                      radius: 14,
+                      backgroundColor: done ? Colors.white : Colors.white24,
+                      child: done ? Icon(Icons.check, size: 16, color: Colors.deepOrange) : Text(labels[i], style: const TextStyle(color: Colors.white70, fontSize: 12)),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(labels[i], style: const TextStyle(color: Colors.white70, fontSize: 12)),
+                  ],
+                );
+              }),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Top Apps Today list
+  Widget _buildTopAppsToday() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('Top Apps Today', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 12),
+          FutureBuilder<List<Map<String, dynamic>>>(
+            future: _dbHelper.getAllApps(),
+            builder: (context, snapshot) {
+              final apps = snapshot.data ?? [
+                {'package_name': 'Instagram', 'category': 'SOCIAL', 'usage': '45m', 'blocked': 0},
+                {'package_name': 'YouTube', 'category': 'ENTERTAINMENT', 'usage': '1h 12m', 'blocked': 5},
+                {'package_name': 'Slack', 'category': 'PRODUCTIVITY', 'usage': '30m', 'blocked': 0},
+              ];
+
+              return Column(
+                children: apps.take(3).map((app) {
+                  final pkg = app['package_name'] as String;
+                  final category = app['category'] as String;
+                  final usage = app['usage'] ?? '';
+                  final blocked = app['blocked'] ?? 0;
+
+                  return Column(
+                    children: [
+                      ListTile(
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 0, vertical: 4),
+                        leading: CircleAvatar(
+                          backgroundColor: _getCategoryColor(category).withOpacity(0.15),
+                          child: Icon(_getCategoryIcon(category), color: _getCategoryColor(category)),
+                        ),
+                        title: Text(pkg, style: const TextStyle(fontWeight: FontWeight.w600)),
+                        subtitle: Text(category, style: TextStyle(color: Colors.grey[600])),
+                        trailing: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(blocked > 0 ? 'Blocked ${blocked}x' : (usage ?? ''), style: TextStyle(color: blocked > 0 ? Colors.red : Colors.black87, fontWeight: FontWeight.w600)),
+                          ],
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                        child: LinearProgressIndicator(value: blocked > 0 ? 0.2 : 0.6, color: _getCategoryColor(category), backgroundColor: _getCategoryColor(category).withOpacity(0.12), minHeight: 6),
+                      ),
+                      const SizedBox(height: 8),
+                    ],
+                  );
+                }).toList(),
+              );
+            },
           ),
         ],
       ),
@@ -260,42 +383,102 @@ class _HomeScreenState extends State<HomeScreen> {
 
   /// Summary stats cards (3 cards in a row)
   Widget _buildStatsCards() {
+    // Floating white card that slightly overlaps the header
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: FutureBuilder<List<Map<String, dynamic>>>(
         future: _dbHelper.getAllApps(),
         builder: (context, snapshot) {
-          final appsCount = snapshot.hasData ? snapshot.data!.length : 0;
+          final appsCount = snapshot.hasData ? snapshot.data!.length : 12;
 
-          return Row(
-            children: [
-              Expanded(
-                child: _buildStatCard(
-                  icon: Icons.apps,
-                  value: appsCount.toString(),
-                  label: 'Apps Monitored',
-                  color: Colors.blue,
+          return Container(
+            transform: Matrix4.translationValues(0, -40, 0),
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.08),
+                  blurRadius: 12,
+                  offset: const Offset(0, 6),
                 ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _buildStatCard(
-                  icon: Icons.schedule,
-                  value: '0h 0m',
-                  label: 'Focus Time',
-                  color: Colors.green,
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('12',
+                              style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.red[700])),
+                          const SizedBox(height: 6),
+                          Text('Apps Blocked', style: TextStyle(color: Colors.grey[700])),
+                        ],
+                      ),
+                    ),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          Text('4h 23m',
+                              style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.green[700])),
+                          const SizedBox(height: 6),
+                          Text('Focus Time', style: TextStyle(color: Colors.grey[700])),
+                        ],
+                      ),
+                    ),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Text('8',
+                              style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.purple[700])),
+                          const SizedBox(height: 6),
+                          Text('Quizzes', style: TextStyle(color: Colors.grey[700])),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _buildStatCard(
-                  icon: Icons.quiz,
-                  value: '0',
-                  label: 'Quizzes',
-                  color: Colors.orange,
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('Daily Goal Progress', style: TextStyle(fontSize: 12, color: Colors.black87)),
+                          const SizedBox(height: 8),
+                          LinearProgressIndicator(
+                            value: 0.7,
+                            color: Colors.blue,
+                            backgroundColor: Colors.blue.shade50,
+                            minHeight: 8,
+                          ),
+                          const SizedBox(height: 6),
+                          Text('Goal: 6 hours', style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
-              ),
-            ],
+              ],
+            ),
           );
         },
       ),
@@ -412,6 +595,64 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  /// Quick Actions 2x2 grid
+  Widget _buildQuickActionsGrid() {
+    final items = [
+      {'label': 'Blocked Apps', 'icon': Icons.block, 'color': Colors.red},
+      {'label': 'Allowed Apps', 'icon': Icons.check_circle, 'color': Colors.green},
+      {'label': 'Practice Quiz', 'icon': Icons.quiz, 'color': Colors.blue},
+      {'label': 'Settings', 'icon': Icons.settings, 'color': Colors.grey},
+    ];
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: GridView.count(
+        crossAxisCount: 2,
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        mainAxisSpacing: 12,
+        crossAxisSpacing: 12,
+        childAspectRatio: 3,
+        children: items.map((it) {
+          return GestureDetector(
+            onTap: () {
+              // TODO: wire up actions
+            },
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8, offset: const Offset(0,4)),
+                ],
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: (it['color'] as Color).withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(it['icon'] as IconData, color: it['color'] as Color),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      it['label'] as String,
+                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }).toList(),
       ),
     );
   }
