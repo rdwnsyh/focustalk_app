@@ -12,9 +12,12 @@ class OverlayQuizScreen extends StatefulWidget {
 
 class _OverlayQuizScreenState extends State<OverlayQuizScreen> {
   bool _isLoading = true;
-  bool _isAnswered = false;
+  bool _isSubmitted = false;
+  bool _isCorrect = false;
+  
   Map<String, dynamic>? _questionData;
   String? _errorMessage;
+  String? _selectedOption; // Menyimpan jawaban yang dipilih user sementara
 
   @override
   void initState() {
@@ -25,7 +28,9 @@ class _OverlayQuizScreenState extends State<OverlayQuizScreen> {
   Future<void> _loadQuestion() async {
     setState(() {
       _isLoading = true;
-      _isAnswered = false;
+      _isSubmitted = false;
+      _isCorrect = false;
+      _selectedOption = null;
       _errorMessage = null;
     });
 
@@ -37,274 +42,443 @@ class _OverlayQuizScreenState extends State<OverlayQuizScreen> {
         _questionData = question;
         _isLoading = false;
         if (question == null) {
-          _errorMessage = 'No questions available in database';
+          _errorMessage = 'No questions available.';
         }
       });
     } catch (e) {
       setState(() {
         _isLoading = false;
-        _errorMessage = 'Error loading question: $e';
+        _errorMessage = 'Error: $e';
       });
     }
   }
 
-  void _handleAnswer(String selectedAnswer) async {
-    if (_questionData == null || _isAnswered) return;
+  void _handleSubmit() async {
+    if (_selectedOption == null || _questionData == null) return;
 
     final correctAnswer = _questionData!['correct_answer'] as String;
     final questionId = _questionData!['id'] as int;
 
-    if (selectedAnswer == correctAnswer) {
-      // Correct answer - mark as solved and close overlay
-      final dbHelper = DatabaseHelper();
-      await dbHelper.markQuestionAsSolved(questionId);
+    setState(() {
+      _isSubmitted = true;
+    });
 
-      print('✅ Correct answer! Closing overlay. Will reappear in 7 seconds.');
-      FlutterOverlayWindow.closeOverlay();
-    } else {
-      // Wrong answer - show feedback and load new question
+    if (_selectedOption == correctAnswer) {
+      // JAWABAN BENAR
       setState(() {
-        _isAnswered = true;
+        _isCorrect = true;
       });
 
-      // Show "Wrong Answer!" message for 0.8 seconds, then load new question
-      Future.delayed(const Duration(milliseconds: 800), () {
+      // Tandai di database
+      final dbHelper = DatabaseHelper();
+      await dbHelper.markQuestionAsSolved(questionId);
+      
+      // Berikan waktu reward (logika ada di method bawah)
+      await _grantRewardTime();
+
+      // Jangan langsung tutup, biarkan user melihat layar "Correct" sebentar atau klik tombol continue
+    } else {
+      // JAWABAN SALAH
+      setState(() {
+        _isCorrect = false;
+      });
+
+      // Delay sebentar lalu load pertanyaan baru (Hukuman)
+      Future.delayed(const Duration(seconds: 2), () {
         if (mounted) {
-          _loadQuestion(); // Load new question immediately
+          _loadQuestion();
         }
       });
     }
   }
 
-  /// Grant 7-second reward time for the current app (DEMO)
   Future<void> _grantRewardTime() async {
     try {
-      // Get the package name from SharedPreferences (saved by background service)
       final prefs = await SharedPreferences.getInstance();
       final packageName = prefs.getString('current_blocked_app');
-
-      if (packageName == null || packageName.isEmpty) {
-        print('⚠️ Warning: Could not get package name for reward time');
-        return;
+      if (packageName != null && packageName.isNotEmpty) {
+        final expiryTime = DateTime.now().add(const Duration(minutes: 10)).millisecondsSinceEpoch; // Reward 10 menit
+        await prefs.setInt('unlock_expiry_$packageName', expiryTime);
       }
-
-      // Calculate expiry timestamp (7 SECONDS from now for DEMO)
-      final expiryTime =
-          DateTime.now().add(const Duration(seconds: 7)).millisecondsSinceEpoch;
-
-      // Save unlock expiry to SharedPreferences
-      await prefs.setInt('unlock_expiry_$packageName', expiryTime);
-
-      print('✅ App Unlocked for 7 seconds: $packageName');
-      print('   Expiry: ${DateTime.fromMillisecondsSinceEpoch(expiryTime)}');
     } catch (e) {
-      print('❌ Error granting reward time: $e');
+      debugPrint('Error granting reward: $e');
     }
+  }
+
+  void _closeOverlay() {
+    FlutterOverlayWindow.closeOverlay();
   }
 
   List<String> _getOptions() {
     if (_questionData == null) return [];
-
     final options = <String>[];
-
-    // Add all available options
-    if (_questionData!['option_a'] != null) {
-      options.add(_questionData!['option_a'] as String);
-    }
-    if (_questionData!['option_b'] != null) {
-      options.add(_questionData!['option_b'] as String);
-    }
-    if (_questionData!['option_c'] != null) {
-      options.add(_questionData!['option_c'] as String);
-    }
-    if (_questionData!['option_d'] != null) {
-      options.add(_questionData!['option_d'] as String);
-    }
-
-    return options;
+    if (_questionData!['option_a'] != null) options.add(_questionData!['option_a']);
+    if (_questionData!['option_b'] != null) options.add(_questionData!['option_b']);
+    if (_questionData!['option_c'] != null) options.add(_questionData!['option_c']);
+    if (_questionData!['option_d'] != null) options.add(_questionData!['option_d']);
+    return options; // Di aplikasi nyata, sebaiknya di-shuffle jika perlu
   }
 
   @override
   Widget build(BuildContext context) {
+    // Jika sudah submit dan benar, tampilkan layar Success (Hijau)
+    if (_isSubmitted && _isCorrect) {
+      return MaterialApp(
+        debugShowCheckedModeBanner: false,
+        home: _buildSuccessScreen(),
+      );
+    }
+
+    // Tampilan Quiz Utama (Merah/Putih)
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       home: Scaffold(
-        backgroundColor: Colors.black.withOpacity(0.95),
-        body: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24.0),
-            child:
-                _isLoading
-                    ? const CircularProgressIndicator(color: Colors.white)
-                    : _errorMessage != null
-                    ? _buildErrorCard()
-                    : _buildQuizCard(),
+        backgroundColor: Colors.white,
+        body: _isLoading
+            ? const Center(child: CircularProgressIndicator(color: Colors.redAccent))
+            : _errorMessage != null
+                ? Center(child: Text(_errorMessage!))
+                : Column(
+                    children: [
+                      _buildHeader(),
+                      Expanded(
+                        child: SingleChildScrollView(
+                          padding: const EdgeInsets.all(20),
+                          child: Column(
+                            children: [
+                              _buildQuestionCard(),
+                              const SizedBox(height: 20),
+                              _buildOptionsList(),
+                              const SizedBox(height: 30),
+                            ],
+                          ),
+                        ),
+                      ),
+                      _buildFooterButtons(),
+                    ],
+                  ),
+      ),
+    );
+  }
+
+  // --- WIDGETS UI UTAMA ---
+
+  Widget _buildHeader() {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(20, 50, 20, 30), // Top padding untuk status bar
+      decoration: const BoxDecoration(
+        color: Color(0xFFEF5350), // Warna Merah sesuai desain
+        borderRadius: BorderRadius.vertical(bottom: Radius.circular(30)),
+      ),
+      child: Column(
+        children: [
+          const Text(
+            "Focus Interruption!",
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 22,
+              fontWeight: FontWeight.bold,
+            ),
           ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildErrorCard() {
-    return Card(
-      elevation: 8,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Container(
-        padding: const EdgeInsets.all(24),
-        constraints: const BoxConstraints(maxWidth: 400),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.error_outline, color: Colors.red, size: 60),
-            const SizedBox(height: 16),
-            Text(
-              _errorMessage!,
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 16, color: Colors.red),
-            ),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: () => FlutterOverlayWindow.closeOverlay(),
-              child: const Text('Close'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildQuizCard() {
-    final options = _getOptions();
-    final optionLabels = ['A', 'B', 'C', 'D'];
-
-    return Card(
-      elevation: 8,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Container(
-        padding: const EdgeInsets.all(24),
-        constraints: const BoxConstraints(maxWidth: 400),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Title
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.red[50],
-                borderRadius: BorderRadius.circular(8),
+          const SizedBox(height: 5),
+          const Text(
+            "Answer this quiz to continue",
+            style: TextStyle(color: Colors.white70, fontSize: 14),
+          ),
+          const SizedBox(height: 20),
+          // Progress Bar Dummy (1/3)
+          Row(
+            children: [
+              Expanded(
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(5),
+                  child: const LinearProgressIndicator(
+                    value: 0.33, // 1 dari 3
+                    backgroundColor: Colors.black12,
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    minHeight: 6,
+                  ),
+                ),
               ),
-              child: Row(
+              const SizedBox(width: 10),
+              const Text("1/3", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            ],
+          ),
+          const SizedBox(height: 15),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(children: const [
+                Icon(Icons.timer_outlined, color: Colors.white, size: 20),
+                SizedBox(width: 5),
+                Text("30s", style: TextStyle(color: Colors.white)),
+              ]),
+              Row(children: const [
+                Icon(Icons.emoji_events_outlined, color: Colors.white, size: 20),
+                SizedBox(width: 5),
+                Text("Score: 0", style: TextStyle(color: Colors.white)),
+              ]),
+            ],
+          )
+        ],
+      ),
+    );
+  }
+
+  Widget _buildQuestionCard() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: const Color(0xFFE3F2FD), // Biru Muda
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFF2196F3).withOpacity(0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            "Question 1",
+            style: TextStyle(color: Colors.black54, fontSize: 14),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            _questionData!['question'] ?? "",
+            style: const TextStyle(
+              color: Colors.black87,
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              height: 1.3,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildOptionsList() {
+    final options = _getOptions();
+    final letters = ['A', 'B', 'C', 'D'];
+
+    return Column(
+      children: List.generate(options.length, (index) {
+        final optionText = options[index];
+        final letter = letters[index];
+        final isSelected = _selectedOption == optionText;
+
+        // Logic warna jika sudah submit (Salah = Merah, tapi di sini kita reset soal kalau salah)
+        // Jadi kita hanya fokus ke state "Selected" saja.
+        
+        Color borderColor = Colors.grey.shade300;
+        Color bgColor = Colors.white;
+        Color letterBg = Colors.grey.shade200;
+        Color letterColor = Colors.black87;
+
+        if (isSelected) {
+          borderColor = const Color(0xFF2196F3);
+          bgColor = const Color(0xFFF5FAFF); // Biru sangat muda
+          letterBg = Colors.black87; // Style baru: badge hitam saat selected? Atau biru?
+          // Sesuai desain image: Badge jadi Hitam/Gelap, Text jadi tebal
+        }
+
+        if (_isSubmitted && !isSelected) {
+           // Disable tampilan opsi lain jika perlu
+           borderColor = Colors.grey.shade200;
+        }
+        
+        // Tampilan Error pada opsi yang dipilih (sebelum refresh)
+        if (_isSubmitted && !_isCorrect && isSelected) {
+           borderColor = Colors.red;
+           bgColor = Colors.red.shade50;
+        }
+
+        return GestureDetector(
+          onTap: _isSubmitted ? null : () {
+            setState(() {
+              _selectedOption = optionText;
+            });
+          },
+          child: Container(
+            margin: const EdgeInsets.only(bottom: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+            decoration: BoxDecoration(
+              color: bgColor,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: borderColor, width: isSelected ? 2 : 1),
+            ),
+            child: Row(
+              children: [
+                // Badge Huruf (A, B, C, D)
+                Container(
+                  width: 32,
+                  height: 32,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: isSelected ? Colors.black87 : const Color(0xFFEEEEEE),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Text(
+                    letter,
+                    style: TextStyle(
+                      color: isSelected ? Colors.white : Colors.black87,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Text(
+                    optionText,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                      color: Colors.black87,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      }),
+    );
+  }
+
+  Widget _buildFooterButtons() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 10, offset: Offset(0, -2))],
+      ),
+      child: Row(
+        children: [
+          // Cancel Button
+          Expanded(
+            flex: 4,
+            child: ElevatedButton(
+              onPressed: () {
+                // Di real app, tombol cancel mungkin tidak boleh menutup overlay
+                // Tapi untuk UX yang baik, mungkin meminimalkan atau keluar dari app yang diblokir
+                FlutterOverlayWindow.closeOverlay(); 
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFE0E0E0),
+                foregroundColor: Colors.black87,
+                elevation: 0,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              child: const Text("Cancel", style: TextStyle(fontWeight: FontWeight.bold)),
+            ),
+          ),
+          const SizedBox(width: 12),
+          // Submit Button
+          Expanded(
+            flex: 6,
+            child: ElevatedButton(
+              onPressed: _isSubmitted || _selectedOption == null ? null : _handleSubmit,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF4285F4), // Google Blue
+                foregroundColor: Colors.white,
+                elevation: 2,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              child: const Text("Submit Answer", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // --- TAMPILAN SUKSES (HIJAU) ---
+
+  Widget _buildSuccessScreen() {
+    return Scaffold(
+      backgroundColor: Colors.white,
+      body: Column(
+        children: [
+          // Header Hijau
+          Container(
+            padding: const EdgeInsets.fromLTRB(20, 60, 20, 40),
+            decoration: const BoxDecoration(
+              color: Color(0xFF4CAF50), // Hijau Sukses
+              borderRadius: BorderRadius.vertical(bottom: Radius.circular(30)),
+            ),
+            width: double.infinity,
+            child: Column(
+              children: [
+                const Icon(Icons.check_circle_outline, color: Colors.white, size: 60),
+                const SizedBox(height: 10),
+                const Text(
+                  "Correct!",
+                  style: TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 5),
+                const Text(
+                  "Great job! Keep it up!",
+                  style: TextStyle(color: Colors.white70, fontSize: 16),
+                ),
+                const SizedBox(height: 20),
+                // Progress Full
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(5),
+                  child: const LinearProgressIndicator(
+                    value: 1.0,
+                    backgroundColor: Colors.black12,
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    minHeight: 8,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.all(24.0),
+              child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(
-                    Icons.warning_amber_rounded,
-                    color: Colors.red[700],
-                    size: 28,
+                  Image.asset(
+                    'assets/images/success_badge.png', // Pastikan punya placeholder atau ganti Icon
+                    height: 150,
+                    errorBuilder: (c, o, s) => const Icon(Icons.emoji_events, size: 100, color: Colors.amber),
                   ),
-                  const SizedBox(width: 8),
-                  Flexible(
-                    child: Text(
-                      'FocusTalk Quiz',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.red[900],
+                  const SizedBox(height: 20),
+                  const Text(
+                    "You answered correctly!",
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(height: 10),
+                  const Text(
+                    "You can now continue using the app for 10 minutes.",
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.grey),
+                  ),
+                  const Spacer(),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: _closeOverlay,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF4CAF50),
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      child: const Text(
+                        "Continue to App",
+                        style: TextStyle(fontSize: 16, color: Colors.white, fontWeight: FontWeight.bold),
                       ),
                     ),
                   ),
                 ],
               ),
             ),
-
-            const SizedBox(height: 24),
-
-            // Question
-            Text(
-              _questionData!['question'] as String,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-                color: Colors.black87,
-              ),
-            ),
-
-            const SizedBox(height: 24),
-
-            // Answer Options
-            ...List.generate(options.length, (index) {
-              final option = options[index];
-              final label = optionLabels[index];
-
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: _isAnswered ? null : () => _handleAnswer(option),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blue[600],
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      disabledBackgroundColor: Colors.grey[400],
-                    ),
-                    child: Text(
-                      '$label. $option',
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ),
-              );
-            }),
-
-            const SizedBox(height: 16),
-
-            // Feedback message
-            if (_isAnswered)
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.red[100],
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.red[300]!),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.close, color: Colors.red[900], size: 20),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Wrong! Try Again',
-                      style: TextStyle(
-                        color: Colors.red[900],
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-            const SizedBox(height: 12),
-
-            // Info text
-            Text(
-              'Answer correctly to continue using the app',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 12,
-                color: Colors.grey[600],
-                fontStyle: FontStyle.italic,
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
