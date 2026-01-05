@@ -158,9 +158,10 @@ void onStart(ServiceInstance service) async {
                     enableDrag: false,
                     overlayTitle: "FocusTalk Quiz",
                     overlayContent: 'Answer the question to continue',
-                    flag: OverlayFlag.defaultFlag, // Covers the screen
+                    flag: OverlayFlag.defaultFlag,
                     visibility: NotificationVisibility.visibilityPublic,
                     positionGravity: PositionGravity.auto,
+                    // Use matchParent for responsive sizing
                     height: WindowSize.matchParent,
                     width: WindowSize.matchParent,
                     alignment: OverlayAlignment.center,

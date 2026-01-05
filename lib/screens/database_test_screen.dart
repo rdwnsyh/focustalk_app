@@ -69,8 +69,9 @@ class _DatabaseTestScreenState extends State<DatabaseTestScreen> {
         flag: OverlayFlag.defaultFlag,
         visibility: NotificationVisibility.visibilityPublic,
         positionGravity: PositionGravity.auto,
-        height: WindowSize.matchParent,
-        width: WindowSize.matchParent,
+        // Make overlay only wrap content so it doesn't cover entire screen
+        height: 400,
+        width: 300,
         alignment: OverlayAlignment.center,
       );
       if (mounted) {

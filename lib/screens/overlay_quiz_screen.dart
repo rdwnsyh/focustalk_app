@@ -125,38 +125,59 @@ class _OverlayQuizScreenState extends State<OverlayQuizScreen> {
     if (_isSubmitted && _isCorrect) {
       return MaterialApp(
         debugShowCheckedModeBanner: false,
+        color: Colors.transparent,
+        theme: ThemeData(
+          scaffoldBackgroundColor: Colors.transparent,
+          canvasColor: Colors.transparent,
+        ),
         home: _buildSuccessScreen(),
       );
     }
 
-    // Tampilan Quiz Utama (Merah/Putih)
+    // Tampilan Quiz Utama (Merah/Putih) dalam kotak 3:4 yang tidak fullscreen
     return MaterialApp(
       debugShowCheckedModeBanner: false,
+      color: Colors.transparent,
+      theme: ThemeData(
+        scaffoldBackgroundColor: Colors.transparent,
+        canvasColor: Colors.transparent,
+      ),
       home: Scaffold(
-        backgroundColor: Colors.white,
-        body: _isLoading
-            ? const Center(child: CircularProgressIndicator(color: Colors.redAccent))
-            : _errorMessage != null
-                ? Center(child: Text(_errorMessage!))
-                : Column(
-                    children: [
-                      _buildHeader(),
-                      Expanded(
-                        child: SingleChildScrollView(
-                          padding: const EdgeInsets.all(20),
-                          child: Column(
+        backgroundColor: Colors.transparent,
+        body: Center(
+          child: AspectRatio(
+            aspectRatio: 3 / 4,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(20),
+              child: Container(
+                color: Colors.white,
+                child: _isLoading
+                    ? const Center(child: CircularProgressIndicator(color: Colors.redAccent))
+                    : _errorMessage != null
+                        ? Center(child: Text(_errorMessage!))
+                        : Column(
                             children: [
-                              _buildQuestionCard(),
-                              const SizedBox(height: 20),
-                              _buildOptionsList(),
-                              const SizedBox(height: 30),
+                              _buildHeader(),
+                              Expanded(
+                                child: SingleChildScrollView(
+                                  padding: const EdgeInsets.all(20),
+                                  child: Column(
+                                    children: [
+                                      _buildQuestionCard(),
+                                      const SizedBox(height: 20),
+                                      _buildOptionsList(),
+                                      const SizedBox(height: 30),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                              _buildFooterButtons(),
                             ],
                           ),
-                        ),
-                      ),
-                      _buildFooterButtons(),
-                    ],
-                  ),
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -396,89 +417,108 @@ class _OverlayQuizScreenState extends State<OverlayQuizScreen> {
   // --- TAMPILAN SUKSES (HIJAU) ---
 
   Widget _buildSuccessScreen() {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      body: Column(
-        children: [
-          // Header Hijau
-          Container(
-            padding: const EdgeInsets.fromLTRB(20, 60, 20, 40),
-            decoration: const BoxDecoration(
-              color: Color(0xFF4CAF50), // Hijau Sukses
-              borderRadius: BorderRadius.vertical(bottom: Radius.circular(30)),
-            ),
-            width: double.infinity,
-            child: Column(
-              children: [
-                const Icon(Icons.check_circle_outline, color: Colors.white, size: 60),
-                const SizedBox(height: 10),
-                const Text(
-                  "Correct!",
-                  style: TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 5),
-                const Text(
-                  "Great job! Keep it up!",
-                  style: TextStyle(color: Colors.white70, fontSize: 16),
-                ),
-                const SizedBox(height: 20),
-                // Progress Full
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(5),
-                  child: const LinearProgressIndicator(
-                    value: 1.0,
-                    backgroundColor: Colors.black12,
-                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                    minHeight: 8,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.all(24.0),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Image.asset(
-                    'assets/images/success_badge.png', // Pastikan punya placeholder atau ganti Icon
-                    height: 150,
-                    errorBuilder: (c, o, s) => const Icon(Icons.emoji_events, size: 100, color: Colors.amber),
-                  ),
-                  const SizedBox(height: 20),
-                  const Text(
-                    "You answered correctly!",
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
-                  ),
-                  const SizedBox(height: 10),
-                  const Text(
-                    "You can now continue using the app for 10 minutes.",
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: Colors.grey),
-                  ),
-                  const Spacer(),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: _closeOverlay,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF4CAF50),
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      color: Colors.transparent,
+      theme: ThemeData(
+        scaffoldBackgroundColor: Colors.transparent,
+        canvasColor: Colors.transparent,
+      ),
+      home: Scaffold(
+        backgroundColor: Colors.transparent,
+        body: Center(
+          child: AspectRatio(
+            aspectRatio: 3 / 4,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(20),
+              child: Container(
+                color: Colors.white,
+                child: Column(
+                  children: [
+                    // Header Hijau
+                    Container(
+                      padding: const EdgeInsets.fromLTRB(20, 60, 20, 40),
+                      decoration: const BoxDecoration(
+                        color: Color(0xFF4CAF50), // Hijau Sukses
+                        borderRadius: BorderRadius.vertical(bottom: Radius.circular(30)),
                       ),
-                      child: const Text(
-                        "Continue to App",
-                        style: TextStyle(fontSize: 16, color: Colors.white, fontWeight: FontWeight.bold),
+                      width: double.infinity,
+                      child: Column(
+                        children: [
+                          const Icon(Icons.check_circle_outline, color: Colors.white, size: 60),
+                          const SizedBox(height: 10),
+                          const Text(
+                            "Correct!",
+                            style: TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold),
+                          ),
+                          const SizedBox(height: 5),
+                          const Text(
+                            "Great job! Keep it up!",
+                            style: TextStyle(color: Colors.white70, fontSize: 16),
+                          ),
+                          const SizedBox(height: 20),
+                          // Progress Full
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(5),
+                            child: const LinearProgressIndicator(
+                              value: 1.0,
+                              backgroundColor: Colors.black12,
+                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                              minHeight: 8,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                  ),
-                ],
+                    
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.all(24.0),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Image.asset(
+                              'assets/images/success_badge.png', // Pastikan punya placeholder atau ganti Icon
+                              height: 150,
+                              errorBuilder: (c, o, s) => const Icon(Icons.emoji_events, size: 100, color: Colors.amber),
+                            ),
+                            const SizedBox(height: 20),
+                            const Text(
+                              "You answered correctly!",
+                              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+                            ),
+                            const SizedBox(height: 10),
+                            const Text(
+                              "You can now continue using the app for 10 minutes.",
+                              textAlign: TextAlign.center,
+                              style: TextStyle(color: Colors.grey),
+                            ),
+                            const Spacer(),
+                            SizedBox(
+                              width: double.infinity,
+                              child: ElevatedButton(
+                                onPressed: _closeOverlay,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFF4CAF50),
+                                  padding: const EdgeInsets.symmetric(vertical: 16),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                ),
+                                child: const Text(
+                                  "Continue to App",
+                                  style: TextStyle(fontSize: 16, color: Colors.white, fontWeight: FontWeight.bold),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
-        ],
+        ),
       ),
     );
   }
