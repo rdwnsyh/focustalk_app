@@ -15,6 +15,10 @@ class _OverlayQuizScreenState extends State<OverlayQuizScreen> {
   bool _isSubmitted = false;
   bool _isCorrect = false;
   
+  // Quiz flow state
+  int _currentQuestionIndex = 1; // 1-based
+  final int _totalQuestions = 3;
+
   Map<String, dynamic>? _questionData;
   String? _errorMessage;
   String? _selectedOption; // Menyimpan jawaban yang dipilih user sementara
@@ -72,18 +76,27 @@ class _OverlayQuizScreenState extends State<OverlayQuizScreen> {
       // Tandai di database
       final dbHelper = DatabaseHelper();
       await dbHelper.markQuestionAsSolved(questionId);
-      
-      // Berikan waktu reward (logika ada di method bawah)
-      await _grantRewardTime();
 
-      // Jangan langsung tutup, biarkan user melihat layar "Correct" sebentar atau klik tombol continue
+      // Jika ini adalah soal terakhir, berikan reward dan tampilkan layar sukses
+      if (_currentQuestionIndex >= _totalQuestions) {
+        await _grantRewardTime();
+        // biarkan state _isSubmitted && _isCorrect untuk menampilkan layar sukses
+      } else {
+        // Tampilkan feedback singkat lalu lanjut ke soal berikutnya
+        await Future.delayed(const Duration(milliseconds: 800));
+        if (!mounted) return;
+        setState(() {
+          _currentQuestionIndex += 1;
+        });
+        await _loadQuestion();
+      }
     } else {
       // JAWABAN SALAH
       setState(() {
         _isCorrect = false;
       });
 
-      // Delay sebentar lalu load pertanyaan baru (Hukuman)
+      // Delay sebentar lalu load pertanyaan baru untuk indeks yang sama (hukuman)
       Future.delayed(const Duration(seconds: 2), () {
         if (mounted) {
           _loadQuestion();
@@ -207,14 +220,14 @@ class _OverlayQuizScreenState extends State<OverlayQuizScreen> {
             style: TextStyle(color: Colors.white70, fontSize: 14),
           ),
           const SizedBox(height: 20),
-          // Progress Bar Dummy (1/3)
+          // Progress Bar Dummy (dinamis)
           Row(
             children: [
               Expanded(
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(5),
-                  child: const LinearProgressIndicator(
-                    value: 0.33, // 1 dari 3
+                  child: LinearProgressIndicator(
+                    value: _currentQuestionIndex / _totalQuestions,
                     backgroundColor: Colors.black12,
                     valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                     minHeight: 6,
@@ -222,7 +235,7 @@ class _OverlayQuizScreenState extends State<OverlayQuizScreen> {
                 ),
               ),
               const SizedBox(width: 10),
-              const Text("1/3", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              Text("$_currentQuestionIndex/$_totalQuestions", style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
             ],
           ),
           const SizedBox(height: 15),
@@ -258,9 +271,9 @@ class _OverlayQuizScreenState extends State<OverlayQuizScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            "Question 1",
-            style: TextStyle(color: Colors.black54, fontSize: 14),
+          Text(
+            "Question $_currentQuestionIndex",
+            style: const TextStyle(color: Colors.black54, fontSize: 14),
           ),
           const SizedBox(height: 8),
           Text(
