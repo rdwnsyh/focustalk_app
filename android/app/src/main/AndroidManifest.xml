@@ -30,7 +30,7 @@
         tools:ignore="QueryAllPackagesPermission" />
 
     <application
-        android:label="focustalk_app"
+        android:label="FocusTalk"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

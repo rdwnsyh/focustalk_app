@@ -5,6 +5,7 @@ import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:flutter_overlay_window/flutter_overlay_window.dart';
 import 'package:usage_stats/usage_stats.dart';
 import 'package:focustalk_app/services/database_helper.dart';
+import 'package:focustalk_app/services/notification_helper.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 // ==================== CRITICAL FIX ====================
@@ -45,7 +46,7 @@ void onStart(ServiceInstance service) async {
   }
   // ==========================================================================
 
-  // Initialize SharedPreferences for reward time tracking
+  // Initialize SharedPreferences
   final prefs = await SharedPreferences.getInstance();
   print('✅ SharedPreferences initialized in background service');
 
@@ -54,8 +55,19 @@ void onStart(ServiceInstance service) async {
   await dbHelper.seedDatabase();
   print('✅ Database initialized and seeded in background service');
 
+  // Initialize NotificationHelper for study reminders
+  await NotificationHelper.initialize();
+  print('✅ NotificationHelper initialized in background service');
+
   String? lastDetectedApp;
   DateTime? lastDetectionTime;
+
+  // NEW: Timer for 10-minute rule
+  int appSessionSeconds = 0;
+  String? trackedApp;
+
+  // NEW: Notification tracking (3-hour reminder)
+  DateTime? lastReminderTime;
 
   // Listen for stop command
   service.on('stopService').listen((event) {
@@ -69,9 +81,83 @@ void onStart(ServiceInstance service) async {
     service.stopSelf();
   });
 
-  // Main monitoring loop - 1 second interval for faster blocking response
+  // Main monitoring loop - 1 second interval
   Timer.periodic(const Duration(seconds: 1), (timer) async {
     try {
+      // ==================== CHECK OVERLAY STATUS FIRST ====================
+      // PAUSE monitoring while overlay is open to prevent timer from counting during quiz
+      bool isOverlayOpen = await FlutterOverlayWindow.isActive();
+      if (isOverlayOpen) {
+        print("⏸️ Overlay is open. Pausing timer...");
+        return; // EXIT the loop iteration. Do not count time. Do not check apps.
+      }
+      // ====================================================================
+
+      // ==================== REFRESH VALUES FROM SHAREDPREFERENCES ====================
+      // Background service runs in separate isolate, so we must re-fetch fresh data
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.reload(); // <--- CRITICAL: Force reload from disk, not cache!
+
+      // Get current date
+      String today =
+          DateTime.now().toIso8601String().split('T')[0]; // YYYY-MM-DD
+      String lastDate = prefs.getString('last_solved_date') ?? "";
+
+      // RESET LOGIC: If it's a new day, reset counters automatically here
+      if (lastDate != today) {
+        await prefs.setInt('solved_today', 0);
+        await prefs.setString('last_solved_date', today);
+        print("📅 New Day Detected! Counters Reset to 0.");
+      }
+
+      // Fetch LATEST values (not cached) - re-read after potential reset
+      int solved = prefs.getInt('solved_today') ?? 0;
+      int goal = prefs.getInt('daily_goal') ?? 20;
+
+      print('🔍 Background Check: solved=$solved, goal=$goal');
+
+      // FREEDOM LOGIC: If target reached, STOP blocking
+      if (solved >= goal) {
+        print('🎉 GOAL REACHED! $solved >= $goal - Exiting monitoring loop');
+
+        // Update notification to show "Goal Reached! Free Time"
+        if (service is AndroidServiceInstance) {
+          service.setForegroundNotificationInfo(
+            title: "FocusTalk: Free Mode ✨",
+            content: "Daily target ($solved/$goal) reached. You are free!",
+          );
+        }
+
+        // Reset session tracking
+        appSessionSeconds = 0;
+        trackedApp = null;
+
+        return; // <--- CRITICAL: EXIT THE LOOP immediately. Do not check apps.
+      }
+      // ===============================================================================
+
+      // ==================== 3-HOUR REMINDER NOTIFICATION ====================
+      // Only send reminders if goal is NOT reached
+      bool goalReached = solved >= goal;
+      if (!goalReached) {
+        final now = DateTime.now();
+        // Check if first run OR 3 hours passed since last reminder
+        if (lastReminderTime == null ||
+            now.difference(lastReminderTime!).inSeconds >= 10) {
+          final remaining = goal - solved;
+
+          // Trigger Local Notification
+          await NotificationHelper.showNotification(
+            "Don't forget to study!",
+            "You have $remaining question${remaining > 1 ? 's' : ''} left today.",
+          );
+
+          lastReminderTime = now; // Update timestamp
+          print('🔔 Study reminder sent! ($remaining questions remaining)');
+        }
+      }
+      // =====================================================================
+
       // Get current foreground app
       final now = DateTime.now();
       final endDate = now;
@@ -93,94 +179,104 @@ void onStart(ServiceInstance service) async {
 
         final currentApp = usageStats.first.packageName;
 
-        // TODO: IMPORTANT - Replace 'com.example.focustalk_app' with your actual applicationId
-        // Find it in: android/app/build.gradle.kts -> defaultConfig -> applicationId
-        // This prevents the app from blocking itself
+        // Prevent the app from blocking itself
         if (currentApp == 'com.example.focustalk_app') {
           return;
         }
 
-        // Only process if this is a new app or 7 seconds have passed
-        if (currentApp != lastDetectedApp ||
-            lastDetectionTime == null ||
-            now.difference(lastDetectionTime!).inSeconds >= 7) {
-          lastDetectedApp = currentApp;
-          lastDetectionTime = now;
+        print('📱 Current App: $currentApp');
 
-          print('📱 Current App: $currentApp');
+        // Check category from database
+        final category = await dbHelper.getCategory(currentApp ?? '');
+        print('🔍 Database lookup result: $category');
 
-          // Check category from database
-          final category = await dbHelper.getCategory(currentApp ?? '');
+        if (category != null) {
+          print('📂 Category: $category');
 
-          print('🔍 Database lookup result: $category');
+          // ==================== 10-MINUTE TIMER LOGIC ====================
+          // Only track SOCIAL/GAME apps when goal is not met
+          if (category == 'GAME' || category == 'SOCIAL') {
+            final isActive = await dbHelper.isAppActive(currentApp ?? '');
 
-          if (category != null) {
-            print('📂 Category: $category');
+            if (isActive == null || !isActive) {
+              print('🔓 Blocking disabled for $currentApp');
+              appSessionSeconds = 0;
+              trackedApp = null;
+              return;
+            }
 
-            // ==================== INTERVENTION LOGIC ====================
-            // Check if overlay should be shown for GAME or SOCIAL apps
-            if (category == 'GAME' || category == 'SOCIAL') {
-              // ✅ NEW: Check if blocking is enabled for this app
-              final isActive = await dbHelper.isAppActive(currentApp ?? '');
-
-              if (isActive == null) {
-                print('⚠️ App not found in database: $currentApp');
-                return;
-              }
-
-              if (!isActive) {
-                print('🔓 Blocking disabled for $currentApp (is_active = 0)');
-                return;
-              }
+            // Check if we're still tracking the same app
+            if (trackedApp == currentApp) {
+              // Same app - increment timer
+              appSessionSeconds++;
+              final minutesUsed = (appSessionSeconds / 60).floor();
+              final secondsLeft = 10 - appSessionSeconds;
 
               print(
-                '⚠️ Triggering intervention for category: $category (is_active = 1)',
+                '⏱️ $currentApp usage: ${minutesUsed}m ${appSessionSeconds % 60}s (${secondsLeft}s until quiz)',
               );
 
-              // Check if overlay is already active
-              final overlayIsActive = await FlutterOverlayWindow.isActive();
-              print('🔎 Overlay active status: $overlayIsActive');
+              // Update notification with timer
+              if (service is AndroidServiceInstance) {
+                final minutesLeft = (secondsLeft / 60).ceil();
+                service.setForegroundNotificationInfo(
+                  title: "FocusTalk Monitoring",
+                  content:
+                      "⏳ ${currentApp?.split('.').last}: $minutesLeft min left before quiz",
+                );
+              }
 
-              if (!overlayIsActive) {
-                print('🚨 Blocked app detected! Category: $category');
-                print('🎯 Showing overlay quiz...');
+              // Check if 10 seconds have passed (for testing/demo)
+              if (appSessionSeconds >= 10) {
+                print('🚨 10 seconds reached! Showing overlay quiz...');
 
-                try {
-                  // Save current blocked app package name for reward time tracking
-                  await prefs.setString(
-                    'current_blocked_app',
-                    currentApp ?? '',
-                  );
-                  print('💾 Saved current blocked app: $currentApp');
+                // Check if overlay is already active
+                final overlayIsActive = await FlutterOverlayWindow.isActive();
+                if (!overlayIsActive) {
+                  try {
+                    await prefs.setString(
+                      'current_blocked_app',
+                      currentApp ?? '',
+                    );
 
-                  // Show the overlay with full screen coverage
-                  await FlutterOverlayWindow.showOverlay(
-                    enableDrag: false,
-                    overlayTitle: "FocusTalk Quiz",
-                    overlayContent: 'Answer the question to continue',
-                    flag: OverlayFlag.defaultFlag, // Covers the screen
-                    visibility: NotificationVisibility.visibilityPublic,
-                    positionGravity: PositionGravity.auto,
-                    height: WindowSize.matchParent,
-                    width: WindowSize.matchParent,
-                    alignment: OverlayAlignment.center,
-                  );
+                    await FlutterOverlayWindow.showOverlay(
+                      enableDrag: false,
+                      overlayTitle: "FocusTalk Quiz",
+                      overlayContent: 'Answer the question to continue',
+                      flag: OverlayFlag.defaultFlag,
+                      visibility: NotificationVisibility.visibilityPublic,
+                      positionGravity: PositionGravity.auto,
+                      height: WindowSize.matchParent,
+                      width: WindowSize.matchParent,
+                      alignment: OverlayAlignment.center,
+                    );
 
-                  print('✅ Overlay shown successfully');
-                } catch (e) {
-                  print('❌ Error showing overlay: $e');
-                  print('❌ Error details: ${e.toString()}');
+                    print('✅ Overlay shown successfully');
+                    appSessionSeconds = 0; // Reset timer after showing quiz
+                  } catch (e) {
+                    print('❌ Error showing overlay: $e');
+                  }
                 }
-              } else {
-                print('⏸️ Overlay already active, skipping');
               }
             } else {
-              print('✓ Category $category is not blocked');
+              // Different app - reset timer
+              print(
+                '🔄 App changed from $trackedApp to $currentApp - resetting timer',
+              );
+              trackedApp = currentApp;
+              appSessionSeconds = 0;
             }
-            // ==================== END INTERVENTION LOGIC ====================
           } else {
-            print('❓ App not in dictionary: $currentApp');
+            // Not a monitored category - reset timer
+            if (trackedApp != null) {
+              print('✓ Category $category is not monitored - resetting timer');
+              appSessionSeconds = 0;
+              trackedApp = null;
+            }
           }
+          // ==================== END 10-MINUTE LOGIC ====================
+        } else {
+          print('ℹ️ App not found in database: $currentApp');
         }
       }
 

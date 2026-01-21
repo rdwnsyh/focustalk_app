@@ -55,11 +55,19 @@ class _OverlayQuizScreenState extends State<OverlayQuizScreen> {
     final questionId = _questionData!['id'] as int;
 
     if (selectedAnswer == correctAnswer) {
-      // Correct answer - mark as solved and close overlay
+      // Correct answer - mark as solved and INCREMENT daily progress
       final dbHelper = DatabaseHelper();
       await dbHelper.markQuestionAsSolved(questionId);
 
-      print('✅ Correct answer! Closing overlay. Will reappear in 7 seconds.');
+      // Increment solved count for daily goal tracking
+      final goalMet = await dbHelper.incrementSolvedCount();
+
+      if (goalMet) {
+        print('🎉 Daily goal achieved! Closing overlay - you are free today!');
+      } else {
+        print('✅ Correct answer! Progress updated.');
+      }
+
       FlutterOverlayWindow.closeOverlay();
     } else {
       // Wrong answer - show feedback and load new question

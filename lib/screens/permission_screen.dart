@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_overlay_window/flutter_overlay_window.dart';
 import 'package:usage_stats/usage_stats.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:focustalk_app/screens/home_screen.dart';
+import 'package:focustalk_app/screens/main_screen.dart';
 
 class PermissionScreen extends StatefulWidget {
   const PermissionScreen({super.key});
@@ -11,7 +11,8 @@ class PermissionScreen extends StatefulWidget {
   State<PermissionScreen> createState() => _PermissionScreenState();
 }
 
-class _PermissionScreenState extends State<PermissionScreen> {
+class _PermissionScreenState extends State<PermissionScreen>
+    with WidgetsBindingObserver {
   bool _overlayPermissionGranted = false;
   bool _usageAccessGranted = false;
   bool _notificationPermissionGranted = false;
@@ -20,7 +21,23 @@ class _PermissionScreenState extends State<PermissionScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _checkPermissions();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // When user returns from Settings, re-check permissions
+    if (state == AppLifecycleState.resumed) {
+      print('📱 App resumed - re-checking permissions...');
+      _checkPermissions();
+    }
   }
 
   /// Check all required permissions
@@ -45,6 +62,16 @@ class _PermissionScreenState extends State<PermissionScreen> {
         _notificationPermissionGranted = notificationStatus;
         _isChecking = false;
       });
+
+      // Auto-navigate to home if all critical permissions are granted
+      if (overlayStatus && usageStatus && mounted) {
+        print('✅ All critical permissions granted - navigating to home...');
+        Future.delayed(const Duration(milliseconds: 500), () {
+          if (mounted) {
+            _navigateToHome();
+          }
+        });
+      }
     } catch (e) {
       setState(() {
         _isChecking = false;
@@ -143,9 +170,12 @@ class _PermissionScreenState extends State<PermissionScreen> {
   void _continueToApp() {
     Navigator.pushReplacement(
       context,
-      MaterialPageRoute(builder: (context) => const HomeScreen()),
+      MaterialPageRoute(builder: (context) => const MainScreen()),
     );
   }
+
+  /// Alias for _continueToApp (used by auto-navigation)
+  void _navigateToHome() => _continueToApp();
 
   @override
   Widget build(BuildContext context) {

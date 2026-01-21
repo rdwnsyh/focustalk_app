@@ -1,5 +1,6 @@
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class DatabaseHelper {
   // Singleton pattern
@@ -477,5 +478,79 @@ class DatabaseHelper {
     _database = null;
     _database = await _initDatabase();
     print('✅ Database reset!');
+  }
+
+  // ==================== DAILY GOAL MANAGEMENT ====================
+
+  /// Get daily goal (default 20)
+  Future<int> getDailyGoal() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getInt('daily_goal') ?? 20;
+  }
+
+  /// Set daily goal
+  Future<void> setDailyGoal(int goal) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt('daily_goal', goal);
+    print('📊 Daily goal set to: $goal');
+  }
+
+  /// Get questions solved today
+  Future<int> getSolvedToday() async {
+    final prefs = await SharedPreferences.getInstance();
+
+    // Check if we need to reset the counter (new day)
+    final today = DateTime.now().toIso8601String().split('T')[0]; // YYYY-MM-DD
+    final lastSolvedDate = prefs.getString('last_solved_date') ?? '';
+
+    if (today != lastSolvedDate) {
+      // New day - reset counter
+      await prefs.setInt('solved_today', 0);
+      await prefs.setString('last_solved_date', today);
+      print('🌅 New day detected - counter reset to 0');
+      return 0;
+    }
+
+    return prefs.getInt('solved_today') ?? 0;
+  }
+
+  /// Increment solved count and check if goal is met
+  Future<bool> incrementSolvedCount() async {
+    final prefs = await SharedPreferences.getInstance();
+
+    // Ensure we're on the correct day
+    final today = DateTime.now().toIso8601String().split('T')[0];
+    await prefs.setString('last_solved_date', today);
+
+    // Increment counter
+    final currentCount = await getSolvedToday();
+    final newCount = currentCount + 1;
+    await prefs.setInt('solved_today', newCount);
+
+    // Check if goal is met
+    final goal = await getDailyGoal();
+    final goalMet = newCount >= goal;
+
+    print('✅ Question solved! Progress: $newCount/$goal');
+    if (goalMet) {
+      print('🎉 Daily goal achieved! You are free today!');
+    }
+
+    return goalMet; // Return true if goal is met
+  }
+
+  /// Check if daily goal is met
+  Future<bool> isDailyGoalMet() async {
+    final solvedToday = await getSolvedToday();
+    final goal = await getDailyGoal();
+    return solvedToday >= goal;
+  }
+
+  /// Get progress percentage (0-100)
+  Future<double> getProgressPercentage() async {
+    final solvedToday = await getSolvedToday();
+    final goal = await getDailyGoal();
+    if (goal == 0) return 0.0;
+    return (solvedToday / goal * 100).clamp(0.0, 100.0);
   }
 }

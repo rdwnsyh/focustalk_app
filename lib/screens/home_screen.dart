@@ -1,6 +1,8 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:focustalk_app/services/database_helper.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -14,6 +16,12 @@ class _HomeScreenState extends State<HomeScreen> {
 
   bool _isServiceRunning = false;
 
+  // Live dashboard data
+  int _solvedToday = 0;
+  int _monitoredAppsCount = 0;
+  int _dailyGoal = 5;
+  Timer? _refreshTimer;
+
   @override
   void initState() {
     super.initState();
@@ -21,6 +29,43 @@ class _HomeScreenState extends State<HomeScreen> {
     print('🏠 HOME SCREEN INITIALIZED - initState() called');
     print('═══════════════════════════════════════════════════════');
     _checkServiceStatus();
+    _loadDashboardData(); // Initial load
+
+    // Auto-refresh every 3 seconds (background service updates data)
+    _refreshTimer = Timer.periodic(const Duration(seconds: 3), (timer) {
+      _loadDashboardData();
+    });
+  }
+
+  @override
+  void dispose() {
+    _refreshTimer?.cancel(); // Stop timer when screen is disposed
+    super.dispose();
+  }
+
+  /// Load dashboard data from SharedPreferences
+  Future<void> _loadDashboardData() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.reload(); // Force reload from disk
+
+      final solved = prefs.getInt('solved_today') ?? 0;
+      final goal = prefs.getInt('daily_goal') ?? 5;
+
+      // Get apps count for stats card
+      final apps = await _dbHelper.getAllApps();
+      final appsCount = apps.length;
+
+      if (mounted) {
+        setState(() {
+          _solvedToday = solved;
+          _dailyGoal = goal;
+          _monitoredAppsCount = appsCount;
+        });
+      }
+    } catch (e) {
+      print('❌ Error loading dashboard data: $e');
+    }
   }
 
   /// Check if background service is running
@@ -84,56 +129,6 @@ class _HomeScreenState extends State<HomeScreen> {
     debugPrint('📊 UI State updated: _isServiceRunning = $_isServiceRunning');
   }
 
-  /// Toggle app blocking status
-  Future<void> _toggleAppStatus(String packageName, bool currentStatus) async {
-    try {
-      final newStatus = !currentStatus;
-      await _dbHelper.toggleAppStatus(packageName, newStatus);
-
-      if (mounted) {
-        setState(() {}); // Refresh UI
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              newStatus ? '✅ Monitoring enabled' : '🔓 Monitoring disabled',
-            ),
-            duration: const Duration(seconds: 1),
-          ),
-        );
-      }
-    } catch (e) {
-      print('❌ Error toggling app status: $e');
-    }
-  }
-
-  /// Get icon based on category
-  IconData _getCategoryIcon(String category) {
-    switch (category) {
-      case 'GAME':
-        return Icons.videogame_asset;
-      case 'SOCIAL':
-        return Icons.chat_bubble;
-      case 'PRODUCTIVITY':
-        return Icons.work;
-      default:
-        return Icons.android;
-    }
-  }
-
-  /// Get color based on category
-  Color _getCategoryColor(String category) {
-    switch (category) {
-      case 'GAME':
-        return Colors.deepPurple;
-      case 'SOCIAL':
-        return Colors.blue;
-      case 'PRODUCTIVITY':
-        return Colors.green;
-      default:
-        return Colors.grey;
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -151,6 +146,11 @@ class _HomeScreenState extends State<HomeScreen> {
 
                     const SizedBox(height: 20),
 
+                    // ==================== DAILY GOAL PROGRESS ====================
+                    _buildDailyGoalCard(),
+
+                    const SizedBox(height: 20),
+
                     // ==================== SUMMARY STATS CARDS ====================
                     _buildStatsCards(),
 
@@ -160,11 +160,6 @@ class _HomeScreenState extends State<HomeScreen> {
                     _buildProtectionStatusCard(),
 
                     const SizedBox(height: 24),
-
-                    // ==================== MONITORED APPS SECTION ====================
-                    _buildMonitoredAppsSection(),
-
-                    const SizedBox(height: 20),
                   ],
                 ),
               ),
@@ -204,34 +199,21 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Top Row: Profile Icon and Notification Bell
+          // Top Row: Profile Icon
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                children: [
-                  CircleAvatar(
-                    backgroundColor: Colors.white.withOpacity(0.3),
-                    child: const Icon(Icons.person, color: Colors.white),
-                  ),
-                  const SizedBox(width: 12),
-                  const Text(
-                    'Arsyandi',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
+              CircleAvatar(
+                backgroundColor: Colors.white.withOpacity(0.3),
+                child: const Icon(Icons.person, color: Colors.white),
               ),
-              IconButton(
-                icon: const Icon(Icons.notifications_outlined),
-                color: Colors.white,
-                iconSize: 28,
-                onPressed: () {
-                  // TODO: Notification action
-                },
+              const SizedBox(width: 12),
+              const Text(
+                'Arsyandi',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ],
           ),
@@ -262,42 +244,35 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildStatsCards() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: FutureBuilder<List<Map<String, dynamic>>>(
-        future: _dbHelper.getAllApps(),
-        builder: (context, snapshot) {
-          final appsCount = snapshot.hasData ? snapshot.data!.length : 0;
-
-          return Row(
-            children: [
-              Expanded(
-                child: _buildStatCard(
-                  icon: Icons.apps,
-                  value: appsCount.toString(),
-                  label: 'Apps Monitored',
-                  color: Colors.blue,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _buildStatCard(
-                  icon: Icons.schedule,
-                  value: '0h 0m',
-                  label: 'Focus Time',
-                  color: Colors.green,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _buildStatCard(
-                  icon: Icons.quiz,
-                  value: '0',
-                  label: 'Quizzes',
-                  color: Colors.orange,
-                ),
-              ),
-            ],
-          );
-        },
+      child: Row(
+        children: [
+          Expanded(
+            child: _buildStatCard(
+              icon: Icons.apps,
+              value: _monitoredAppsCount.toString(),
+              label: 'Apps Monitored',
+              color: Colors.blue,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: _buildStatCard(
+              icon: Icons.schedule,
+              value: '0h 0m',
+              label: 'Focus Time',
+              color: Colors.green,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: _buildStatCard(
+              icon: Icons.quiz,
+              value: _solvedToday.toString(),
+              label: 'Quizzes',
+              color: Colors.orange,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -447,165 +422,181 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  /// Monitored Apps Section
-  Widget _buildMonitoredAppsSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Section Header
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'Monitored Apps',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black87,
-                ),
+  /// Daily Goal Progress Card
+  Widget _buildDailyGoalCard() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16.0),
+      child: FutureBuilder<Map<String, dynamic>>(
+        future: _getDailyGoalData(),
+        builder: (context, snapshot) {
+          if (!snapshot.hasData) {
+            return const Card(
+              child: Padding(
+                padding: EdgeInsets.all(16.0),
+                child: Center(child: CircularProgressIndicator()),
               ),
-              TextButton(
-                onPressed: () {
-                  setState(() {}); // Refresh list
-                },
-                child: const Text('Refresh'),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 12),
-        // Apps List
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: FutureBuilder<List<Map<String, dynamic>>>(
-            future: _dbHelper.getAllApps(),
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Center(
-                  child: Padding(
-                    padding: EdgeInsets.all(32.0),
-                    child: CircularProgressIndicator(),
-                  ),
-                );
-              }
+            );
+          }
 
-              if (snapshot.hasError) {
-                return Center(
-                  child: Padding(
-                    padding: EdgeInsets.all(32.0),
-                    child: Text(
-                      'Error loading apps: ${snapshot.error}',
-                      style: const TextStyle(color: Colors.red),
-                    ),
-                  ),
-                );
-              }
+          final data = snapshot.data!;
+          final dailyGoal = data['goal'] as int;
+          final solvedToday = data['solved'] as int;
+          final progress = data['progress'] as double;
+          final isGoalMet = solvedToday >= dailyGoal;
 
-              final apps = snapshot.data ?? [];
-
-              if (apps.isEmpty) {
-                return Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(32.0),
-                    child: Column(
-                      children: [
-                        Icon(Icons.inbox, size: 64, color: Colors.grey[400]),
-                        const SizedBox(height: 16),
-                        Text(
-                          'No apps found',
-                          style: TextStyle(
-                            fontSize: 16,
-                            color: Colors.grey[600],
+          return Card(
+            elevation: 4,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(20.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Header
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            isGoalMet
+                                ? Icons.check_circle
+                                : Icons.track_changes,
+                            color: isGoalMet ? Colors.green : Colors.orange,
+                            size: 28,
                           ),
+                          const SizedBox(width: 10),
+                          Text(
+                            'Daily Goal',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.grey[800],
+                            ),
+                          ),
+                        ],
+                      ),
+                      Text(
+                        '$solvedToday/$dailyGoal',
+                        style: TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: isGoalMet ? Colors.green : Colors.blue,
                         ),
-                      ],
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  // Progress Bar
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(10),
+                    child: LinearProgressIndicator(
+                      value: progress / 100,
+                      minHeight: 12,
+                      backgroundColor: Colors.grey[200],
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                        isGoalMet ? Colors.green : Colors.blue,
+                      ),
                     ),
                   ),
-                );
-              }
 
-              return ListView.separated(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: apps.length,
-                separatorBuilder:
-                    (context, index) => const SizedBox(height: 12),
-                itemBuilder: (context, index) {
-                  final app = apps[index];
-                  final packageName = app['package_name'] as String;
-                  final category = app['category'] as String;
-                  final isActive = (app['is_active'] as int? ?? 1) == 1;
+                  const SizedBox(height: 16),
 
-                  return Container(
+                  // Status Message
+                  Container(
+                    padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.05),
-                          blurRadius: 8,
-                          offset: const Offset(0, 2),
+                      color: isGoalMet ? Colors.green[50] : Colors.orange[50],
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color:
+                            isGoalMet
+                                ? Colors.green[200]!
+                                : Colors.orange[200]!,
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          isGoalMet ? Icons.celebration : Icons.psychology,
+                          color:
+                              isGoalMet
+                                  ? Colors.green[700]
+                                  : Colors.orange[700],
+                          size: 20,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            isGoalMet
+                                ? '🎉 Target Reached! You are free today!'
+                                : '💪 Keep going! ${dailyGoal - solvedToday} question${dailyGoal - solvedToday > 1 ? 's' : ''} left',
+                            style: TextStyle(
+                              color:
+                                  isGoalMet
+                                      ? Colors.green[900]
+                                      : Colors.orange[900],
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
                         ),
                       ],
                     ),
-                    child: ListTile(
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 8,
-                      ),
-                      leading: CircleAvatar(
-                        backgroundColor: _getCategoryColor(
-                          category,
-                        ).withOpacity(0.15),
-                        child: Icon(
-                          _getCategoryIcon(category),
-                          color: _getCategoryColor(category),
-                          size: 24,
-                        ),
-                      ),
-                      title: Text(
-                        packageName,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w600,
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  // Daily Goal Slider
+                  Row(
+                    children: [
+                      const Text(
+                        'Daily Target:',
+                        style: TextStyle(
                           fontSize: 14,
+                          fontWeight: FontWeight.w500,
                         ),
                       ),
-                      subtitle: Container(
-                        margin: const EdgeInsets.only(top: 4),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: _getCategoryColor(category).withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(
-                          category,
-                          style: TextStyle(
-                            color: _getCategoryColor(category),
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                          ),
+                      Expanded(
+                        child: Slider(
+                          value: dailyGoal.toDouble(),
+                          min: 5,
+                          max: 50,
+                          divisions: 9,
+                          label: '$dailyGoal questions',
+                          onChanged: (value) async {
+                            await _dbHelper.setDailyGoal(value.toInt());
+                            setState(() {}); // Refresh UI
+                          },
                         ),
                       ),
-                      trailing: Switch(
-                        value: isActive,
-                        onChanged: (value) {
-                          _toggleAppStatus(packageName, isActive);
-                        },
-                        activeColor: _getCategoryColor(category),
+                      Text(
+                        '$dailyGoal',
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
-                    ),
-                  );
-                },
-              );
-            },
-          ),
-        ),
-      ],
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
     );
+  }
+
+  /// Get daily goal data
+  Future<Map<String, dynamic>> _getDailyGoalData() async {
+    final goal = await _dbHelper.getDailyGoal();
+    final solved = await _dbHelper.getSolvedToday();
+    final progress = await _dbHelper.getProgressPercentage();
+
+    return {'goal': goal, 'solved': solved, 'progress': progress};
   }
 }
