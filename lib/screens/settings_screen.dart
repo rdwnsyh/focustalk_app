@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:focustalk_app/services/database_helper.dart';
+import 'package:focustalk_app/screens/apps_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -206,6 +207,36 @@ class _SettingsScreenState extends State<SettingsScreen> {
               : ListView(
                 padding: const EdgeInsets.all(16),
                 children: [
+                  // ==================== BLOCKING CONFIGURATION ====================
+                  _buildSectionHeader('Blocking Configuration'),
+                  Card(
+                    elevation: 2,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: ListTile(
+                      leading: const Icon(
+                        Icons.grid_view_rounded,
+                        color: Colors.blue,
+                      ),
+                      title: const Text('Monitored Apps'),
+                      subtitle: const Text(
+                        'Manage which apps trigger blocking',
+                      ),
+                      trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const AppsScreen(),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+
+                  const SizedBox(height: 24),
+
                   // ==================== GENERAL SECTION ====================
                   _buildSectionHeader('General'),
                   Card(

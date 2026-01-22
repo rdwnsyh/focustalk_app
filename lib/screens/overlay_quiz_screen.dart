@@ -53,10 +53,14 @@ class _OverlayQuizScreenState extends State<OverlayQuizScreen> {
 
     final correctAnswer = _questionData!['correct_answer'] as String;
     final questionId = _questionData!['id'] as int;
+    final isCorrect = selectedAnswer == correctAnswer;
 
-    if (selectedAnswer == correctAnswer) {
+    // Track stats (correct or wrong)
+    final dbHelper = DatabaseHelper();
+    await dbHelper.updateStats(isCorrect);
+
+    if (isCorrect) {
       // Correct answer - mark as solved and INCREMENT daily progress
-      final dbHelper = DatabaseHelper();
       await dbHelper.markQuestionAsSolved(questionId);
 
       // Increment solved count for daily goal tracking

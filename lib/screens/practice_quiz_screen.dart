@@ -91,13 +91,17 @@ class _PracticeQuizScreenState extends State<PracticeQuizScreen> {
     if (_isAnswered || _questionData == null) return;
 
     final correctAnswer = _questionData!['correct_answer'] as String;
+    final isCorrect = selectedAnswer == correctAnswer;
+
+    // Track stats (correct or wrong)
+    await DatabaseHelper().updateStats(isCorrect);
 
     setState(() {
       _isAnswered = true;
       _selectedAnswer = selectedAnswer;
     });
 
-    if (selectedAnswer == correctAnswer) {
+    if (isCorrect) {
       // CORRECT ANSWER - Increment progress
       await _incrementProgress();
 

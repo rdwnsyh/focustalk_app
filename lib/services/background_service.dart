@@ -239,6 +239,9 @@ void onStart(ServiceInstance service) async {
                       currentApp ?? '',
                     );
 
+                    // Track intervention (distraction blocked)
+                    await DatabaseHelper().incrementIntervention();
+
                     await FlutterOverlayWindow.showOverlay(
                       enableDrag: false,
                       overlayTitle: "FocusTalk Quiz",

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:focustalk_app/screens/home_screen.dart';
-import 'package:focustalk_app/screens/apps_screen.dart';
+import 'package:focustalk_app/screens/stats_screen.dart';
 import 'package:focustalk_app/screens/practice_quiz_screen.dart';
 import 'package:focustalk_app/screens/settings_screen.dart';
 
@@ -17,7 +17,7 @@ class _MainScreenState extends State<MainScreen> {
   // List of pages for bottom navigation
   final List<Widget> _pages = const [
     HomeScreen(),
-    AppsScreen(),
+    StatsScreen(),
     PracticeQuizScreen(),
     SettingsScreen(),
   ];
@@ -45,9 +45,9 @@ class _MainScreenState extends State<MainScreen> {
             label: 'Home',
           ),
           NavigationDestination(
-            icon: Icon(Icons.apps_rounded),
-            selectedIcon: Icon(Icons.apps_rounded, color: Colors.blue),
-            label: 'Apps',
+            icon: Icon(Icons.bar_chart_rounded),
+            selectedIcon: Icon(Icons.bar_chart_rounded, color: Colors.blue),
+            label: 'Stats',
           ),
           NavigationDestination(
             icon: Icon(Icons.school_rounded),

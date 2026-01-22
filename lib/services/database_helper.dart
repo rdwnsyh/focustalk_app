@@ -30,7 +30,7 @@ class DatabaseHelper {
 
     return await openDatabase(
       path,
-      version: 3,
+      version: 5,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
@@ -62,6 +62,27 @@ class DatabaseHelper {
       );
       print('✅ Migration: Added is_active column to app_dictionary');
     }
+
+    if (oldVersion < 4) {
+      // Create daily_stats table for tracking history
+      await db.execute('''
+        CREATE TABLE daily_stats (
+          date TEXT PRIMARY KEY,
+          solved_count INTEGER DEFAULT 0,
+          correct_answers INTEGER DEFAULT 0,
+          wrong_answers INTEGER DEFAULT 0
+        )
+      ''');
+      print('✅ Migration: Created daily_stats table');
+    }
+
+    if (oldVersion < 5) {
+      // Add interventions_count column to daily_stats
+      await db.execute(
+        'ALTER TABLE daily_stats ADD COLUMN interventions_count INTEGER DEFAULT 0',
+      );
+      print('✅ Migration: Added interventions_count column to daily_stats');
+    }
   }
 
   /// Create tables
@@ -77,6 +98,17 @@ class DatabaseHelper {
     ''');
 
     // Create questions table with multiple choice options
+
+    // Create daily_stats table for tracking learning history
+    await db.execute('''
+      CREATE TABLE daily_stats (
+        date TEXT PRIMARY KEY,
+        solved_count INTEGER DEFAULT 0,
+        correct_answers INTEGER DEFAULT 0,
+        wrong_answers INTEGER DEFAULT 0,
+        interventions_count INTEGER DEFAULT 0
+      )
+    ''');
     // NOTE: If you change this schema, uninstall the app first to reset the database!
     await db.execute('''
       CREATE TABLE questions (
@@ -552,5 +584,177 @@ class DatabaseHelper {
     final goal = await getDailyGoal();
     if (goal == 0) return 0.0;
     return (solvedToday / goal * 100).clamp(0.0, 100.0);
+  }
+
+  // ============================================================================
+  // STATISTICS TRACKING
+  // ============================================================================
+
+  /// Update daily stats (UPSERT) - Called whenever user answers a question
+  Future<void> updateStats(bool isCorrect) async {
+    final db = await database;
+    final today = DateTime.now().toIso8601String().split('T')[0]; // YYYY-MM-DD
+
+    // Try to get existing record for today
+    final existing = await db.query(
+      'daily_stats',
+      where: 'date = ?',
+      whereArgs: [today],
+    );
+
+    if (existing.isEmpty) {
+      // INSERT new record
+      await db.insert('daily_stats', {
+        'date': today,
+        'solved_count': 1,
+        'correct_answers': isCorrect ? 1 : 0,
+        'wrong_answers': isCorrect ? 0 : 1,
+        'interventions_count': 0,
+      });
+      print('📊 Stats: Created new record for $today');
+    } else {
+      // UPDATE existing record
+      final current = existing.first;
+      await db.update(
+        'daily_stats',
+        {
+          'solved_count': (current['solved_count'] as int) + 1,
+          'correct_answers':
+              (current['correct_answers'] as int) + (isCorrect ? 1 : 0),
+          'wrong_answers':
+              (current['wrong_answers'] as int) + (isCorrect ? 0 : 1),
+        },
+        where: 'date = ?',
+        whereArgs: [today],
+      );
+      print('📊 Stats: Updated record for $today');
+    }
+  }
+
+  /// Increment intervention count (overlay triggered)
+  Future<void> incrementIntervention() async {
+    final db = await database;
+    final today = DateTime.now().toIso8601String().split('T')[0]; // YYYY-MM-DD
+
+    // Try to get existing record for today
+    final existing = await db.query(
+      'daily_stats',
+      where: 'date = ?',
+      whereArgs: [today],
+    );
+
+    if (existing.isEmpty) {
+      // INSERT new record
+      await db.insert('daily_stats', {
+        'date': today,
+        'solved_count': 0,
+        'correct_answers': 0,
+        'wrong_answers': 0,
+        'interventions_count': 1,
+      });
+      print('🛡️ Intervention: Created new record for $today');
+    } else {
+      // UPDATE existing record
+      final current = existing.first;
+      await db.update(
+        'daily_stats',
+        {
+          'interventions_count':
+              (current['interventions_count'] as int? ?? 0) + 1,
+        },
+        where: 'date = ?',
+        whereArgs: [today],
+      );
+      print(
+        '🛡️ Intervention: Blocked distraction #${(current['interventions_count'] as int? ?? 0) + 1}',
+      );
+    }
+  }
+
+  /// Get last 7 days of statistics for charts
+  Future<List<Map<String, dynamic>>> getWeeklyStats() async {
+    final db = await database;
+    final today = DateTime.now();
+    final List<Map<String, dynamic>> weeklyData = [];
+
+    for (int i = 6; i >= 0; i--) {
+      final date = today.subtract(Duration(days: i));
+      final dateString = date.toIso8601String().split('T')[0];
+
+      final result = await db.query(
+        'daily_stats',
+        where: 'date = ?',
+        whereArgs: [dateString],
+      );
+
+      if (result.isEmpty) {
+        // No data for this day
+        weeklyData.add({
+          'date': dateString,
+          'solved_count': 0,
+          'correct_answers': 0,
+          'wrong_answers': 0,
+          'interventions_count': 0,
+        });
+      } else {
+        weeklyData.add(result.first);
+      }
+    }
+
+    return weeklyData;
+  }
+
+  /// Get total all-time stats
+  Future<Map<String, int>> getTotalStats() async {
+    final db = await database;
+    final result = await db.rawQuery('''
+      SELECT 
+        SUM(solved_count) as total_solved,
+        SUM(correct_answers) as total_correct,
+        SUM(wrong_answers) as total_wrong,
+        SUM(interventions_count) as total_interventions
+      FROM daily_stats
+    ''');
+
+    if (result.isEmpty || result.first['total_solved'] == null) {
+      return {
+        'total_solved': 0,
+        'total_correct': 0,
+        'total_wrong': 0,
+        'total_interventions': 0,
+      };
+    }
+
+    return {
+      'total_solved': result.first['total_solved'] as int? ?? 0,
+      'total_correct': result.first['total_correct'] as int? ?? 0,
+      'total_wrong': result.first['total_wrong'] as int? ?? 0,
+      'total_interventions': result.first['total_interventions'] as int? ?? 0,
+    };
+  }
+
+  /// Calculate current streak (consecutive days)
+  Future<int> getCurrentStreak() async {
+    final db = await database;
+    final today = DateTime.now();
+    int streak = 0;
+
+    for (int i = 0; i < 365; i++) {
+      final date = today.subtract(Duration(days: i));
+      final dateString = date.toIso8601String().split('T')[0];
+
+      final result = await db.query(
+        'daily_stats',
+        where: 'date = ? AND solved_count > 0',
+        whereArgs: [dateString],
+      );
+
+      if (result.isEmpty) {
+        break; // Streak broken
+      }
+      streak++;
+    }
+
+    return streak;
   }
 }
