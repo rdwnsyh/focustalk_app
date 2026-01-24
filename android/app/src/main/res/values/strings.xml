@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Google Sign-In Web Client ID -->
+    <!-- This is required for Google Sign-In to work with ID Token -->
+    <string name="default_web_client_id">383786989370-tegl1qqrjaj72u313k8tok1peojo9fao.apps.googleusercontent.com</string>
+</resources>
