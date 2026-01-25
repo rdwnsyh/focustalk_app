@@ -1,6 +1,7 @@
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:focustalk_app/services/leaderboard_service.dart';
 
 class DatabaseHelper {
   // Singleton pattern
@@ -628,6 +629,31 @@ class DatabaseHelper {
         whereArgs: [today],
       );
       print('📊 Stats: Updated record for $today');
+    }
+
+    // ==================== SYNC WITH BACKEND SERVER ====================
+    // Fire-and-forget: Sync progress to leaderboard without blocking UI
+    try {
+      // Determine if we increment server-side total_solved
+      final int solvedIncrement = isCorrect ? 1 : 0;
+
+      // Get current streak
+      final int currentStreak = await getCurrentStreak();
+
+      // Sync to backend (fire-and-forget, don't await)
+      LeaderboardService()
+          .syncProgress(solvedIncrement, currentStreak)
+          .then((_) {
+            print(
+              '🔄 Synced to server: +$solvedIncrement solved, streak: $currentStreak',
+            );
+          })
+          .catchError((error) {
+            print('⚠️ Failed to sync to server: $error');
+            // Internet error won\'t crash the app - local data is still saved
+          });
+    } catch (e) {
+      print('⚠️ Sync error (non-critical): $e');
     }
   }
 

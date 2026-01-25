@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:focustalk_app/services/database_helper.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:focustalk_app/screens/leaderboard_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -199,7 +200,7 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Top Row: Profile Icon
+          // Top Row: Profile Icon and Leaderboard Icon
           Row(
             children: [
               CircleAvatar(
@@ -214,6 +215,24 @@ class _HomeScreenState extends State<HomeScreen> {
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
                 ),
+              ),
+              const Spacer(),
+              // Leaderboard Icon Button
+              IconButton(
+                icon: const Icon(
+                  Icons.emoji_events_rounded,
+                  color: Colors.white,
+                  size: 28,
+                ),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const LeaderboardScreen(),
+                    ),
+                  );
+                },
+                tooltip: 'Leaderboard',
               ),
             ],
           ),
