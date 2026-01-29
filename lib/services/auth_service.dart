@@ -12,19 +12,22 @@ class AuthService {
   // Both phone and laptop must be on the same WiFi network
   static const String _baseUrl = 'http://192.168.100.150:8000';
 
-  // TODO: Replace with your Google Cloud Console WEB Client ID
+  // Google Cloud Console WEB Client ID
+  // This is used for serverClientId in GoogleSignIn
   // Get this from: https://console.cloud.google.com/apis/credentials
-  static const String _serverClientId =
-      '383786989370-tegl1qqrjaj72u313k8tok1peojo9fao.apps.googleusercontent.com';
+  static const String _webClientId =
+      '970950673922-5mecnlsjs82007ji8tp87ba9153tl22i.apps.googleusercontent.com';
 
   // ===========================
   // GOOGLE SIGN-IN INSTANCE
   // ===========================
 
   final GoogleSignIn _googleSignIn = GoogleSignIn(
+    serverClientId: _webClientId,
     scopes: <String>[
       'email',
-      'https://www.googleapis.com/auth/userinfo.profile',
+      'profile',
+      'openid',
     ],
   );
 
@@ -40,9 +43,10 @@ class AuthService {
       // Step 1: Trigger Google Sign-In flow
       final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
 
+      // User cancelled the sign-in
       if (googleUser == null) {
         print('❌ User cancelled Google Sign-In');
-        return null; // User cancelled the sign-in
+        return null;
       }
 
       print('✅ Google account selected: ${googleUser.email}');
@@ -54,7 +58,7 @@ class AuthService {
 
       if (idToken == null) {
         print('❌ Failed to get ID Token');
-        throw Exception('Failed to get ID Token from Google');
+        return null;
       }
 
       print('✅ ID Token obtained');
@@ -82,19 +86,27 @@ class AuthService {
         await prefs.setString('user_name', userData['name'] ?? '');
         await prefs.setString('user_photo', userData['picture'] ?? '');
         await prefs.setBool('is_logged_in', true);
+        
+        // Save full user data as JSON for profile screen
+        final userDataForProfile = {
+          'full_name': userData['name'] ?? '',
+          'email': userData['email'] ?? '',
+          'photo_url': userData['picture'] ?? '',
+        };
+        await prefs.setString('user_data', jsonEncode(userDataForProfile));
 
         print('✅ User data saved to local storage');
 
         return userData;
       } else {
-        print('❌ Backend authentication failed: ${response.body}');
-        throw Exception(
-          'Backend authentication failed: ${response.statusCode}',
-        );
+        print('❌ Backend authentication failed');
+        print('Status Code: ${response.statusCode}');
+        print('Response Body: ${response.body}');
+        return null;
       }
-    } catch (e) {
-      print('❌ Sign-in error: $e');
-      rethrow;
+    } catch (error) {
+      print('❌ Google Sign-In Error: $error');
+      return null;
     }
   }
 
@@ -149,18 +161,27 @@ class AuthService {
         await prefs.setString('user_name', userData['name'] ?? '');
         await prefs.setString('user_photo', userData['picture'] ?? '');
         await prefs.setBool('is_logged_in', true);
+        
+        // Save full user data as JSON for profile screen
+        final userDataForProfile = {
+          'full_name': userData['name'] ?? '',
+          'email': userData['email'] ?? '',
+          'photo_url': userData['picture'] ?? '',
+        };
+        await prefs.setString('user_data', jsonEncode(userDataForProfile));
 
         print('✅ User data saved to local storage');
         return true;
       } else {
         // Registration failed
-        final errorData = jsonDecode(response.body);
-        print('❌ Registration failed: ${errorData['detail'] ?? response.body}');
-        throw Exception(errorData['detail'] ?? 'Registration failed');
+        print('❌ Registration failed');
+        print('Status Code: ${response.statusCode}');
+        print('Response Body: ${response.body}');
+        return false;
       }
     } catch (e) {
       print('❌ Registration error: $e');
-      rethrow;
+      return false;
     }
   }
 
@@ -192,6 +213,14 @@ class AuthService {
         await prefs.setString('user_name', userData['name'] ?? '');
         await prefs.setString('user_photo', userData['picture'] ?? '');
         await prefs.setBool('is_logged_in', true);
+        
+        // Save full user data as JSON for profile screen
+        final userDataForProfile = {
+          'full_name': userData['name'] ?? '',
+          'email': userData['email'] ?? '',
+          'photo_url': userData['picture'] ?? '',
+        };
+        await prefs.setString('user_data', jsonEncode(userDataForProfile));
 
         print('✅ User data saved to local storage');
         return true;

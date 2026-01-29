@@ -31,7 +31,7 @@ class DatabaseHelper {
 
     return await openDatabase(
       path,
-      version: 5,
+      version: 6,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
@@ -84,6 +84,14 @@ class DatabaseHelper {
       );
       print('✅ Migration: Added interventions_count column to daily_stats');
     }
+
+    if (oldVersion < 6) {
+      // Add is_solved column to questions table
+      await db.execute(
+        'ALTER TABLE questions ADD COLUMN is_solved INTEGER DEFAULT 0',
+      );
+      print('✅ Migration: Added is_solved column to questions table');
+    }
   }
 
   /// Create tables
@@ -120,7 +128,8 @@ class DatabaseHelper {
         option_b TEXT NOT NULL,
         option_c TEXT,
         option_d TEXT,
-        shown_count INTEGER DEFAULT 0
+        shown_count INTEGER DEFAULT 0,
+        is_solved INTEGER DEFAULT 0
       )
     ''');
   }
@@ -296,13 +305,29 @@ class DatabaseHelper {
 
   /// Get a random question using Least Recently Used logic
   /// Questions with lower shown_count are prioritized
+  /// Get a random unsolved question (prioritize unsolved, fall back to any)
   Future<Map<String, dynamic>?> getRandomQuestion() async {
     final db = await database;
-    final List<Map<String, dynamic>> results = await db.query(
+    
+    // First, try to fetch an unsolved question
+    var results = await db.query(
       'questions',
-      orderBy: 'shown_count ASC, RANDOM()',
+      where: 'is_solved = 0',
+      orderBy: 'RANDOM()',
       limit: 1,
     );
+
+    // If no unsolved questions, reset all and fetch any random
+    if (results.isEmpty) {
+      print('⚠️ All questions solved! Resetting is_solved flag...');
+      await db.rawUpdate('UPDATE questions SET is_solved = 0');
+      
+      results = await db.query(
+        'questions',
+        orderBy: 'RANDOM()',
+        limit: 1,
+      );
+    }
 
     if (results.isNotEmpty) {
       return results.first;
@@ -310,14 +335,31 @@ class DatabaseHelper {
     return null;
   }
 
-  /// Mark question as solved (increment shown_count)
-  /// This moves the question to the back of the queue
+  /// Get unsolved questions count
+  Future<int> getUnsolvedQuestionsCount() async {
+    final db = await database;
+    final result = await db.rawQuery(
+      'SELECT COUNT(*) as count FROM questions WHERE is_solved = 0',
+    );
+    return Sqflite.firstIntValue(result) ?? 0;
+  }
+
+  /// Mark question as solved
+  /// This sets is_solved = 1 so it won't be fetched until reset
   Future<void> markQuestionAsSolved(int questionId) async {
     final db = await database;
     await db.rawUpdate(
-      'UPDATE questions SET shown_count = shown_count + 1 WHERE id = ?',
+      'UPDATE questions SET is_solved = 1 WHERE id = ?',
       [questionId],
     );
+    print('✅ Question $questionId marked as solved');
+  }
+
+  /// Reset all questions (set is_solved = 0)
+  Future<void> resetAllQuestions() async {
+    final db = await database;
+    await db.rawUpdate('UPDATE questions SET is_solved = 0');
+    print('🔄 All questions reset');
   }
 
   /// Get category by package name

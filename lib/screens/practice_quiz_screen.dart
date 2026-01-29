@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:focustalk_app/services/database_helper.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:focustalk_app/screens/home_screen.dart';
 
 class PracticeQuizScreen extends StatefulWidget {
   const PracticeQuizScreen({super.key});
@@ -14,9 +15,10 @@ class _PracticeQuizScreenState extends State<PracticeQuizScreen> {
 
   Map<String, dynamic>? _questionData;
   bool _isLoading = true;
-  bool _isAnswered = false;
+  bool _isSubmitted = false;
   String? _selectedAnswer;
-  bool isCompleted = false; // NEW: Track if daily goal is completed
+  bool? _isCorrect;
+  bool isCompleted = false;
 
   int _solvedToday = 0;
   int _dailyGoal = 20;
@@ -38,7 +40,6 @@ class _PracticeQuizScreenState extends State<PracticeQuizScreen> {
     setState(() {
       _solvedToday = solved;
       _dailyGoal = goal;
-      // Check if already completed
       isCompleted = solved >= goal;
     });
 
@@ -48,12 +49,13 @@ class _PracticeQuizScreenState extends State<PracticeQuizScreen> {
     }
   }
 
-  /// Load a random question
+  /// Load a random unsolved question
   Future<void> _loadQuestion() async {
     setState(() {
       _isLoading = true;
-      _isAnswered = false;
+      _isSubmitted = false;
       _selectedAnswer = null;
+      _isCorrect = null;
     });
 
     try {
@@ -67,7 +69,10 @@ class _PracticeQuizScreenState extends State<PracticeQuizScreen> {
               backgroundColor: Colors.red,
             ),
           );
-          Navigator.pop(context);
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => const HomeScreen()),
+          );
         }
         return;
       }
@@ -86,60 +91,56 @@ class _PracticeQuizScreenState extends State<PracticeQuizScreen> {
     }
   }
 
-  /// Handle answer selection
-  Future<void> _handleAnswer(String selectedAnswer) async {
-    if (_isAnswered || _questionData == null) return;
+  /// Handle answer selection (just select, don't validate yet)
+  void _selectAnswer(String answer) {
+    if (!_isSubmitted) {
+      setState(() {
+        _selectedAnswer = answer;
+      });
+    }
+  }
+
+  /// Handle answer submission (validate and mark)
+  Future<void> _submitAnswer() async {
+    if (_selectedAnswer == null || _questionData == null) return;
 
     final correctAnswer = _questionData!['correct_answer'] as String;
-    final isCorrect = selectedAnswer == correctAnswer;
+    final questionId = _questionData!['id'] as int;
+    final isCorrect = _selectedAnswer == correctAnswer;
 
-    // Track stats (correct or wrong)
-    await DatabaseHelper().updateStats(isCorrect);
+    // Track stats
+    await _dbHelper.updateStats(isCorrect);
 
     setState(() {
-      _isAnswered = true;
-      _selectedAnswer = selectedAnswer;
+      _isSubmitted = true;
+      _isCorrect = isCorrect;
     });
 
     if (isCorrect) {
-      // CORRECT ANSWER - Increment progress
+      // Correct answer - mark as solved
+      await _dbHelper.markQuestionAsSolved(questionId);
+
+      // Increment progress
       await _incrementProgress();
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('✅ Correct! Loading next question...'),
+            content: Text('✅ Correct! Great job!'),
             backgroundColor: Colors.green,
             duration: Duration(seconds: 1),
           ),
         );
       }
-
-      // Load next question after 1 second
-      await Future.delayed(const Duration(seconds: 1));
-      _loadQuestion();
-    } else {
-      // WRONG ANSWER - Show message, don't load new question
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('❌ Wrong answer! Try again.'),
-            backgroundColor: Colors.red,
-            duration: Duration(seconds: 2),
-          ),
-        );
-      }
-
-      // Reset after 1 second so user can try again
-      await Future.delayed(const Duration(seconds: 1));
-      setState(() {
-        _isAnswered = false;
-        _selectedAnswer = null;
-      });
     }
   }
 
-  /// Increment solved count in SharedPreferences (same as background service)
+  /// Load next question
+  void _nextQuestion() {
+    _loadQuestion();
+  }
+
+  /// Increment solved count in SharedPreferences
   Future<void> _incrementProgress() async {
     final prefs = await SharedPreferences.getInstance();
 
@@ -159,10 +160,10 @@ class _PracticeQuizScreenState extends State<PracticeQuizScreen> {
 
     print('✅ Question solved! Progress: $newCount/$_dailyGoal');
 
-    // Check if goal is met - immediately switch to completed state
+    // Check if goal is met
     if (newCount >= _dailyGoal) {
       setState(() {
-        isCompleted = true; // Switch to success view
+        isCompleted = true;
       });
     }
   }
@@ -172,10 +173,20 @@ class _PracticeQuizScreenState extends State<PracticeQuizScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FA),
       appBar: AppBar(
-        title: const Text('Practice Quiz'),
-        backgroundColor: Colors.purple,
+        title: const Text('Practice Mode 🎯'),
+        backgroundColor: Colors.deepOrange,
         foregroundColor: Colors.white,
         elevation: 0,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.close),
+            onPressed: () => Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (context) => const HomeScreen()),
+            ),
+            tooltip: 'Quit Practice',
+          ),
+        ],
       ),
       body: SafeArea(
         child: Column(
@@ -185,7 +196,7 @@ class _PracticeQuizScreenState extends State<PracticeQuizScreen> {
               width: double.infinity,
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                color: Colors.purple,
+                color: Colors.deepOrange,
                 boxShadow: [
                   BoxShadow(
                     color: Colors.black.withOpacity(0.1),
@@ -234,50 +245,14 @@ class _PracticeQuizScreenState extends State<PracticeQuizScreen> {
             Expanded(
               child:
                   isCompleted
-                      ? _buildSuccessView() // Show success when completed
+                      ? _buildSuccessView()
                       : _isLoading
                       ? const Center(
-                        child: CircularProgressIndicator(color: Colors.purple),
+                        child: CircularProgressIndicator(color: Colors.deepOrange),
                       )
                       : _questionData == null
                       ? const Center(child: Text('No question available'))
-                      : SingleChildScrollView(
-                        padding: const EdgeInsets.all(20),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            // Question Card
-                            Container(
-                              padding: const EdgeInsets.all(20),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(16),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withOpacity(0.05),
-                                    blurRadius: 10,
-                                    offset: const Offset(0, 2),
-                                  ),
-                                ],
-                              ),
-                              child: Text(
-                                _questionData!['question']?.toString() ??
-                                    'Question not available',
-                                style: const TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w600,
-                                  height: 1.5,
-                                ),
-                              ),
-                            ),
-
-                            const SizedBox(height: 24),
-
-                            // Answer Options
-                            ..._buildAnswerButtons(),
-                          ],
-                        ),
-                      ),
+                      : _buildQuizContent(),
             ),
           ],
         ),
@@ -285,95 +260,243 @@ class _PracticeQuizScreenState extends State<PracticeQuizScreen> {
     );
   }
 
-  /// Build answer option buttons
-  List<Widget> _buildAnswerButtons() {
-    if (_questionData == null) return [];
+  /// Build the quiz content with "Select First, Confirm Later" logic
+  Widget _buildQuizContent() {
+    final options = _getOptions();
+    final optionLabels = ['A', 'B', 'C', 'D'];
+    final correctAnswer = _questionData!['correct_answer'] as String;
 
-    final options = [
-      _questionData!['option_a']?.toString() ?? 'Option A',
-      _questionData!['option_b']?.toString() ?? 'Option B',
-      _questionData!['option_c']?.toString() ?? 'Option C',
-      _questionData!['option_d']?.toString() ?? 'Option D',
-    ];
-
-    final correctAnswer = _questionData!['correct_answer']?.toString() ?? '';
-
-    return List.generate(options.length, (index) {
-      final option = options[index];
-      final optionLabel = String.fromCharCode(65 + index); // A, B, C, D
-
-      // Determine button color
-      Color buttonColor = Colors.white;
-      Color textColor = Colors.black87;
-      Color borderColor = Colors.grey.shade300;
-
-      if (_isAnswered && _selectedAnswer == option) {
-        if (option == correctAnswer) {
-          buttonColor = Colors.green.shade50;
-          borderColor = Colors.green;
-          textColor = Colors.green.shade800;
-        } else {
-          buttonColor = Colors.red.shade50;
-          borderColor = Colors.red;
-          textColor = Colors.red.shade800;
-        }
-      }
-
-      return Padding(
-        padding: const EdgeInsets.only(bottom: 12),
-        child: InkWell(
-          onTap: _isAnswered ? null : () => _handleAnswer(option),
-          borderRadius: BorderRadius.circular(12),
-          child: Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: buttonColor,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: borderColor, width: 2),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.03),
-                  blurRadius: 5,
-                  offset: const Offset(0, 2),
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Question Card
+          Card(
+            elevation: 4,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Text(
+                _questionData!['question']?.toString() ?? 'Question not available',
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  height: 1.5,
                 ),
-              ],
+              ),
             ),
-            child: Row(
-              children: [
-                Container(
-                  width: 32,
-                  height: 32,
+          ),
+
+          const SizedBox(height: 24),
+
+          // Answer Options
+          ...List.generate(options.length, (index) {
+            final option = options[index];
+            final label = optionLabels[index];
+            final isSelected = _selectedAnswer == option;
+            final isCorrectAnswer = option == correctAnswer;
+
+            // Determine button styling based on state
+            Color buttonColor = Colors.white;
+            Color borderColor = Colors.grey[300]!;
+            Color textColor = Colors.black87;
+
+            if (_isSubmitted) {
+              // After submission: highlight correct and show selected wrong
+              if (isCorrectAnswer) {
+                buttonColor = Colors.green[100]!;
+                borderColor = Colors.green[600]!;
+                textColor = Colors.green[900]!;
+              } else if (isSelected && !isCorrectAnswer) {
+                buttonColor = Colors.red[100]!;
+                borderColor = Colors.red[600]!;
+                textColor = Colors.red[900]!;
+              }
+            } else if (isSelected) {
+              // Before submission: highlight selected
+              buttonColor = Colors.blue[100]!;
+              borderColor = Colors.blue[600]!;
+              textColor = Colors.blue[900]!;
+            }
+
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: GestureDetector(
+                onTap: _isSubmitted ? null : () => _selectAnswer(option),
+                child: Container(
+                  padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: borderColor.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
+                    color: buttonColor,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: borderColor, width: 2),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.03),
+                        blurRadius: 5,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
                   ),
-                  child: Center(
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 32,
+                        height: 32,
+                        decoration: BoxDecoration(
+                          color: borderColor.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Center(
+                          child: Text(
+                            label,
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: textColor,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          option,
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: textColor,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                      if (_isSubmitted && isCorrectAnswer)
+                        Icon(Icons.check_circle, color: Colors.green[700], size: 20),
+                      if (_isSubmitted && isSelected && !isCorrectAnswer)
+                        Icon(Icons.circle, color: Colors.red[700], size: 20),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          }),
+
+          const SizedBox(height: 24),
+
+          // Feedback message (after submission)
+          if (_isSubmitted && !_isCorrect!)
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.red[100],
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.red[300]!),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.info_outline, color: Colors.red[900], size: 20),
+                  const SizedBox(width: 8),
+                  Expanded(
                     child: Text(
-                      optionLabel,
+                      'The correct answer is: $correctAnswer',
                       style: TextStyle(
+                        color: Colors.red[900],
                         fontWeight: FontWeight.bold,
-                        color: textColor,
+                        fontSize: 13,
                       ),
                     ),
                   ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    option?.toString() ?? '',
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: textColor,
-                      fontWeight: FontWeight.w500,
+                ],
+              ),
+            ),
+
+          if (_isSubmitted && _isCorrect!)
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.green[100],
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.green[300]!),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.celebration, color: Colors.green[900], size: 20),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Great job! You got it right!',
+                      style: TextStyle(
+                        color: Colors.green[900],
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                      ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
+            ),
+
+          const SizedBox(height: 24),
+
+          // Action Button (Check Answer / Next)
+          ElevatedButton(
+            onPressed: _selectedAnswer != null
+                ? (_isSubmitted ? _nextQuestion : _submitAnswer)
+                : null,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: _isSubmitted ? Colors.deepOrange : Colors.blue,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+              disabledBackgroundColor: Colors.grey[400],
+            ),
+            child: Text(
+              _isSubmitted ? 'Next Question' : 'Check Answer',
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ),
-        ),
-      );
-    });
+
+          const SizedBox(height: 12),
+
+          // Info text
+          Text(
+            _isSubmitted
+                ? (_isCorrect! ? 'Answer correctly to continue' : 'Try another question')
+                : 'Select an answer above',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 12,
+              color: Colors.grey[600],
+              fontStyle: FontStyle.italic,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Get options from question data
+  List<String> _getOptions() {
+    if (_questionData == null) return [];
+
+    final options = <String>[];
+    if (_questionData!['option_a'] != null) {
+      options.add(_questionData!['option_a'] as String);
+    }
+    if (_questionData!['option_b'] != null) {
+      options.add(_questionData!['option_b'] as String);
+    }
+    if (_questionData!['option_c'] != null) {
+      options.add(_questionData!['option_c'] as String);
+    }
+    if (_questionData!['option_d'] != null) {
+      options.add(_questionData!['option_d'] as String);
+    }
+
+    return options;
   }
 
   /// Build Success/Congratulation View when daily goal is reached
@@ -449,12 +572,15 @@ class _PracticeQuizScreenState extends State<PracticeQuizScreen> {
             // Back to Home Button
             ElevatedButton.icon(
               onPressed: () {
-                Navigator.pop(context); // Return to home
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(builder: (context) => const HomeScreen()),
+                );
               },
               icon: const Icon(Icons.home),
               label: const Text('Back to Home'),
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.purple,
+                backgroundColor: Colors.deepOrange,
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(
                   horizontal: 32,

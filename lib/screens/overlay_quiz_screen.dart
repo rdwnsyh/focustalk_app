@@ -12,7 +12,9 @@ class OverlayQuizScreen extends StatefulWidget {
 
 class _OverlayQuizScreenState extends State<OverlayQuizScreen> {
   bool _isLoading = true;
-  bool _isAnswered = false;
+  bool _isSubmitted = false;
+  String? _selectedAnswer;
+  bool? _isCorrect;
   Map<String, dynamic>? _questionData;
   String? _errorMessage;
 
@@ -25,7 +27,9 @@ class _OverlayQuizScreenState extends State<OverlayQuizScreen> {
   Future<void> _loadQuestion() async {
     setState(() {
       _isLoading = true;
-      _isAnswered = false;
+      _isSubmitted = false;
+      _selectedAnswer = null;
+      _isCorrect = null;
       _errorMessage = null;
     });
 
@@ -48,16 +52,31 @@ class _OverlayQuizScreenState extends State<OverlayQuizScreen> {
     }
   }
 
-  void _handleAnswer(String selectedAnswer) async {
-    if (_questionData == null || _isAnswered) return;
+  /// Handle answer selection (just select, don't validate yet)
+  void _selectAnswer(String answer) {
+    if (!_isSubmitted) {
+      setState(() {
+        _selectedAnswer = answer;
+      });
+    }
+  }
+
+  /// Handle answer submission (validate and mark)
+  Future<void> _submitAnswer() async {
+    if (_selectedAnswer == null || _questionData == null) return;
 
     final correctAnswer = _questionData!['correct_answer'] as String;
     final questionId = _questionData!['id'] as int;
-    final isCorrect = selectedAnswer == correctAnswer;
+    final isCorrect = _selectedAnswer == correctAnswer;
 
-    // Track stats (correct or wrong)
+    // Track stats
     final dbHelper = DatabaseHelper();
     await dbHelper.updateStats(isCorrect);
+
+    setState(() {
+      _isSubmitted = true;
+      _isCorrect = isCorrect;
+    });
 
     if (isCorrect) {
       // Correct answer - mark as solved and INCREMENT daily progress
@@ -68,24 +87,19 @@ class _OverlayQuizScreenState extends State<OverlayQuizScreen> {
 
       if (goalMet) {
         print('🎉 Daily goal achieved! Closing overlay - you are free today!');
+        // Auto-close after 1 second to let user see the success message
+        Future.delayed(const Duration(seconds: 1), () {
+          FlutterOverlayWindow.closeOverlay();
+        });
       } else {
         print('✅ Correct answer! Progress updated.');
       }
-
-      FlutterOverlayWindow.closeOverlay();
-    } else {
-      // Wrong answer - show feedback and load new question
-      setState(() {
-        _isAnswered = true;
-      });
-
-      // Show "Wrong Answer!" message for 0.8 seconds, then load new question
-      Future.delayed(const Duration(milliseconds: 800), () {
-        if (mounted) {
-          _loadQuestion(); // Load new question immediately
-        }
-      });
     }
+  }
+
+  /// Load next question
+  void _nextQuestion() {
+    _loadQuestion();
   }
 
   /// Grant 7-second reward time for the current app (DEMO)
@@ -188,6 +202,7 @@ class _OverlayQuizScreenState extends State<OverlayQuizScreen> {
   Widget _buildQuizCard() {
     final options = _getOptions();
     final optionLabels = ['A', 'B', 'C', 'D'];
+    final correctAnswer = _questionData!['correct_answer'] as String;
 
     return Card(
       elevation: 8,
@@ -202,25 +217,45 @@ class _OverlayQuizScreenState extends State<OverlayQuizScreen> {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.red[50],
+                color: _isCorrect == null
+                    ? Colors.blue[50]
+                    : _isCorrect!
+                    ? Colors.green[50]
+                    : Colors.red[50],
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Icon(
-                    Icons.warning_amber_rounded,
-                    color: Colors.red[700],
+                    _isCorrect == null
+                        ? Icons.quiz
+                        : _isCorrect!
+                        ? Icons.check_circle
+                        : Icons.circle,
+                    color: _isCorrect == null
+                        ? Colors.blue[700]
+                        : _isCorrect!
+                        ? Colors.green[700]
+                        : Colors.red[700],
                     size: 28,
                   ),
                   const SizedBox(width: 8),
                   Flexible(
                     child: Text(
-                      'FocusTalk Quiz',
+                      _isCorrect == null
+                          ? 'FocusTalk Quiz'
+                          : _isCorrect!
+                          ? 'Correct!'
+                          : 'Incorrect',
                       style: TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.bold,
-                        color: Colors.red[900],
+                        color: _isCorrect == null
+                            ? Colors.blue[900]
+                            : _isCorrect!
+                            ? Colors.green[900]
+                            : Colors.red[900],
                       ),
                     ),
                   ),
@@ -247,38 +282,80 @@ class _OverlayQuizScreenState extends State<OverlayQuizScreen> {
             ...List.generate(options.length, (index) {
               final option = options[index];
               final label = optionLabels[index];
+              final isSelected = _selectedAnswer == option;
+              final isCorrectAnswer = option == correctAnswer;
+
+              // Determine button styling based on state
+              Color buttonColor = Colors.white;
+              Color borderColor = Colors.grey[300]!;
+              Color textColor = Colors.black87;
+
+              if (_isSubmitted) {
+                // After submission: highlight correct and show selected wrong
+                if (isCorrectAnswer) {
+                  buttonColor = Colors.green[100]!;
+                  borderColor = Colors.green[600]!;
+                  textColor = Colors.green[900]!;
+                } else if (isSelected && !isCorrectAnswer) {
+                  buttonColor = Colors.red[100]!;
+                  borderColor = Colors.red[600]!;
+                  textColor = Colors.red[900]!;
+                }
+              } else if (isSelected) {
+                // Before submission: highlight selected
+                buttonColor = Colors.blue[100]!;
+                borderColor = Colors.blue[600]!;
+                textColor = Colors.blue[900]!;
+              }
 
               return Padding(
                 padding: const EdgeInsets.only(bottom: 12),
-                child: SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: _isAnswered ? null : () => _handleAnswer(option),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blue[600],
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      disabledBackgroundColor: Colors.grey[400],
+                child: GestureDetector(
+                  onTap: _isSubmitted ? null : () => _selectAnswer(option),
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
+                    decoration: BoxDecoration(
+                      color: buttonColor,
+                      border: Border.all(color: borderColor, width: 2),
+                      borderRadius: BorderRadius.circular(8),
                     ),
-                    child: Text(
-                      '$label. $option',
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
+                    child: Row(
+                      children: [
+                        Text(
+                          label,
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: textColor,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            option,
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                              color: textColor,
+                            ),
+                          ),
+                        ),
+                        if (_isSubmitted && isCorrectAnswer)
+                          Icon(Icons.check_circle, color: Colors.green[700], size: 20),
+                        if (_isSubmitted && isSelected && !isCorrectAnswer)
+                          Icon(Icons.circle, color: Colors.red[700], size: 20),
+                      ],
                     ),
                   ),
                 ),
               );
             }),
 
-            const SizedBox(height: 16),
+            const SizedBox(height: 20),
 
-            // Feedback message
-            if (_isAnswered)
+            // Feedback message (after submission)
+            if (_isSubmitted && !_isCorrect!)
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
@@ -287,27 +364,84 @@ class _OverlayQuizScreenState extends State<OverlayQuizScreen> {
                   border: Border.all(color: Colors.red[300]!),
                 ),
                 child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.close, color: Colors.red[900], size: 20),
+                    Icon(Icons.info_outline, color: Colors.red[900], size: 20),
                     const SizedBox(width: 8),
-                    Text(
-                      'Wrong! Try Again',
-                      style: TextStyle(
-                        color: Colors.red[900],
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
+                    Expanded(
+                      child: Text(
+                        'The correct answer is: $correctAnswer',
+                        style: TextStyle(
+                          color: Colors.red[900],
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
+                        ),
                       ),
                     ),
                   ],
                 ),
               ),
 
+            if (_isSubmitted && _isCorrect!)
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.green[100],
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.green[300]!),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.celebration, color: Colors.green[900], size: 20),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Great job! You got it right!',
+                        style: TextStyle(
+                          color: Colors.green[900],
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+            const SizedBox(height: 16),
+
+            // Action Button (Check Answer / Next)
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: _selectedAnswer != null
+                    ? (_isSubmitted ? _nextQuestion : _submitAnswer)
+                    : null,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _isSubmitted ? Colors.orange : Colors.blue,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  disabledBackgroundColor: Colors.grey[400],
+                ),
+                child: Text(
+                  _isSubmitted ? 'Next Question' : 'Check Answer',
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
+
             const SizedBox(height: 12),
 
             // Info text
             Text(
-              'Answer correctly to continue using the app',
+              _isSubmitted
+                  ? (_isCorrect! ? 'Answer correctly to continue' : 'Try another question')
+                  : 'Select an answer above',
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 12,

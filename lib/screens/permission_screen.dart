@@ -17,6 +17,7 @@ class _PermissionScreenState extends State<PermissionScreen>
   bool _usageAccessGranted = false;
   bool _notificationPermissionGranted = false;
   bool _isChecking = true;
+  bool _hasNavigated = false;
 
   @override
   void initState() {
@@ -63,19 +64,25 @@ class _PermissionScreenState extends State<PermissionScreen>
         _isChecking = false;
       });
 
+      print('📊 Permission Check - Overlay: $overlayStatus, Usage: $usageStatus');
+
       // Auto-navigate to home if all critical permissions are granted
-      if (overlayStatus && usageStatus && mounted) {
-        print('✅ All critical permissions granted - navigating to home...');
-        Future.delayed(const Duration(milliseconds: 500), () {
-          if (mounted) {
-            _navigateToHome();
-          }
-        });
+      // Only navigate once to prevent duplicate navigation
+      if (overlayStatus && usageStatus && mounted && !_hasNavigated) {
+        print('✅ All critical permissions granted - navigating to MainScreen...');
+        _hasNavigated = true;
+        
+        // Navigate immediately without delay
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const MainScreen()),
+        );
       }
     } catch (e) {
       setState(() {
         _isChecking = false;
       });
+      print('❌ Error checking permissions: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error checking permissions: $e')),
@@ -88,19 +95,22 @@ class _PermissionScreenState extends State<PermissionScreen>
   Future<void> _requestOverlayPermission() async {
     try {
       final granted = await FlutterOverlayWindow.requestPermission();
-      setState(() {
-        _overlayPermissionGranted = granted ?? false;
-      });
-
+      
+      // After returning from permission dialog, check all permissions again
+      await Future.delayed(const Duration(milliseconds: 500));
+      _checkPermissions();
+      
       if (granted == true && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Overlay permission granted!'),
+            content: Text('✅ Overlay permission granted!'),
             backgroundColor: Colors.green,
+            duration: Duration(seconds: 1),
           ),
         );
       }
     } catch (e) {
+      print('❌ Error requesting overlay permission: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error requesting overlay permission: $e')),
@@ -114,23 +124,21 @@ class _PermissionScreenState extends State<PermissionScreen>
     try {
       await UsageStats.grantUsagePermission();
 
-      // Wait a moment then recheck
+      // Wait a moment then recheck all permissions
       await Future.delayed(const Duration(seconds: 1));
-      final granted = await UsageStats.checkUsagePermission() ?? false;
+      _checkPermissions();
 
-      setState(() {
-        _usageAccessGranted = granted;
-      });
-
-      if (granted && mounted) {
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Usage access granted!'),
+            content: Text('✅ Usage access granted!'),
             backgroundColor: Colors.green,
+            duration: Duration(seconds: 1),
           ),
         );
       }
     } catch (e) {
+      print('❌ Error requesting usage access: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error requesting usage access: $e')),
