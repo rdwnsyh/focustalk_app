@@ -19,6 +19,11 @@ class _StatsScreenState extends State<StatsScreen> {
   List<Map<String, dynamic>> _weeklyData = [];
   Map<String, int> _totalStats = {};
 
+  // Color Palette (Modernized)
+  final Color _bgColor = const Color.fromARGB(255, 253, 245, 230);
+  final Color _primaryPurple = const Color(0xFFFF8C42);
+  final Color _cardColor = Colors.white;
+
   @override
   void initState() {
     super.initState();
@@ -56,14 +61,24 @@ class _StatsScreenState extends State<StatsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[100],
+      backgroundColor: _bgColor,
+      extendBodyBehindAppBar: true, // Agar konten bisa scroll di bawah app bar
       appBar: AppBar(
         title: const Text(
-          'Statistics',
-          style: TextStyle(fontWeight: FontWeight.bold),
+          'Your Statistics',
+          style: TextStyle(fontWeight: FontWeight.w800, fontSize: 22),
         ),
         centerTitle: true,
-        backgroundColor: Colors.blue,
+        backgroundColor: _primaryPurple, // Fallback color
+        flexibleSpace: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [_primaryPurple],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+        ),
         foregroundColor: Colors.white,
         elevation: 0,
         actions: [
@@ -74,316 +89,335 @@ class _StatsScreenState extends State<StatsScreen> {
           ),
         ],
       ),
-      body:
-          _isLoading
-              ? const Center(child: CircularProgressIndicator())
-              : RefreshIndicator(
-                onRefresh: _loadStats,
-                child: SingleChildScrollView(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Current Streak Card
-                      _buildStreakCard(),
-                      const SizedBox(height: 20),
+      body: _isLoading
+          ? Center(child: CircularProgressIndicator(color: _primaryPurple))
+          : RefreshIndicator(
+              onRefresh: _loadStats,
+              color: _primaryPurple,
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.fromLTRB(20, 100, 20, 20), // Top padding for extendBodyBehindAppBar
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Current Streak Card
+                    _buildStreakCard(),
+                    const SizedBox(height: 24),
 
-                      // Weekly Progress Bar Chart
-                      _buildWeeklyProgressSection(),
-                      const SizedBox(height: 20),
+                    // Weekly Progress Bar Chart
+                    _buildSectionHeader('Weekly Activity', Icons.bar_chart_rounded, Colors.blue),
+                    const SizedBox(height: 12),
+                    _buildWeeklyProgressSection(),
+                    const SizedBox(height: 24),
 
-                      // Focus Impact Section
-                      _buildFocusImpactSection(),
-                      const SizedBox(height: 20),
+                    // Focus Impact Section
+                    _buildSectionHeader('Focus Impact', Icons.psychology_rounded, Colors.purple),
+                    const SizedBox(height: 12),
+                    _buildFocusImpactSection(),
+                    const SizedBox(height: 24),
 
-                      // Top Distractions Today
-                      _buildTopDistractionsSection(),
-                      const SizedBox(height: 20),
+                    // Top Distractions Today
+                    _buildSectionHeader('Top Distractions', Icons.phone_android_rounded, Colors.red),
+                    const SizedBox(height: 12),
+                    _buildTopDistractionsSection(),
+                    const SizedBox(height: 24),
 
-                      // Accuracy Pie Chart
-                      _buildAccuracySection(),
-                      const SizedBox(height: 20),
+                    // Accuracy Pie Chart
+                    _buildSectionHeader('Accuracy Rate', Icons.pie_chart_rounded, Colors.green),
+                    const SizedBox(height: 12),
+                    _buildAccuracySection(),
+                    const SizedBox(height: 24),
 
-                      // Total Summary Cards
-                      _buildTotalSummary(),
-                    ],
-                  ),
+                    // Total Summary Cards
+                    _buildSectionHeader('All-Time Summary', Icons.history_rounded, Colors.orange),
+                    const SizedBox(height: 12),
+                    _buildTotalSummary(),
+                    const SizedBox(height: 40), // Bottom spacer
+                  ],
                 ),
               ),
+            ),
     );
   }
 
-  /// Streak Card
-  Widget _buildStreakCard() {
-    return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(24),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Colors.orange.shade400, Colors.deepOrange.shade600],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
+  Widget _buildSectionHeader(String title, IconData icon, Color color) {
+    return Row(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(10),
           ),
-          borderRadius: BorderRadius.circular(16),
+          child: Icon(icon, color: color, size: 20),
         ),
-        child: Column(
-          children: [
-            const Icon(
-              Icons.local_fire_department,
-              color: Colors.white,
-              size: 48,
-            ),
-            const SizedBox(height: 12),
-            Text(
-              '$_currentStreak',
-              style: const TextStyle(
-                fontSize: 48,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
+        const SizedBox(width: 12),
+        Text(
+          title,
+          style: const TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: Colors.black87,
+            letterSpacing: 0.5,
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Streak Card (Modern Gradient)
+  Widget _buildStreakCard() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Colors.orange.shade400, Colors.deepOrange.shade600],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.orange.withOpacity(0.3),
+            blurRadius: 15,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.local_fire_department_rounded, color: Colors.white, size: 32),
+              const SizedBox(width: 8),
+              Text(
+                '$_currentStreak',
+                style: const TextStyle(
+                  fontSize: 56,
+                  fontWeight: FontWeight.w900,
+                  color: Colors.white,
+                  height: 1,
+                ),
               ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'DAY STREAK',
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.white.withOpacity(0.8),
+              fontWeight: FontWeight.bold,
+              letterSpacing: 1.5,
             ),
-            const SizedBox(height: 8),
-            const Text(
-              'Day Streak',
-              style: TextStyle(
-                fontSize: 18,
+          ),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Text(
+              _currentStreak == 0 ? 'Start today!' : 'Keep the fire burning!',
+              style: const TextStyle(
+                fontSize: 14,
                 color: Colors.white,
                 fontWeight: FontWeight.w500,
               ),
             ),
-            const SizedBox(height: 4),
-            Text(
-              _currentStreak == 0
-                  ? 'Start your streak today!'
-                  : 'Keep up the momentum!',
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.white.withOpacity(0.9),
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 
-  /// Weekly Progress Bar Chart
+  /// Weekly Progress Bar Chart (Clean Design)
   Widget _buildWeeklyProgressSection() {
-    return Card(
-      elevation: 3,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.bar_chart, color: Colors.blue.shade700, size: 28),
-                const SizedBox(width: 12),
-                const Text(
-                  'Weekly Progress',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black87,
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: _cardColor,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.05),
+            blurRadius: 20,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: SizedBox(
+        height: 220,
+        child: _weeklyData.isEmpty
+            ? const Center(child: Text('No data available', style: TextStyle(color: Colors.grey)))
+            : BarChart(
+                BarChartData(
+                  alignment: BarChartAlignment.spaceAround,
+                  maxY: _getMaxYValue(),
+                  barTouchData: BarTouchData(
+                    enabled: true,
+                    touchTooltipData: BarTouchTooltipData(
+                      getTooltipColor: (group) => Colors.blueGrey.shade800,
+                      tooltipRoundedRadius: 8,
+                      tooltipPadding: const EdgeInsets.all(8),
+                      getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                        return BarTooltipItem(
+                          '${rod.toY.round()}',
+                          const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                          ),
+                          children: [
+                            const TextSpan(
+                              text: '\nquestions',
+                              style: TextStyle(
+                                color: Colors.white70,
+                                fontSize: 10,
+                                fontWeight: FontWeight.normal,
+                              ),
+                            ),
+                          ],
+                        );
+                      },
+                    ),
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
-            SizedBox(
-              height: 220,
-              child:
-                  _weeklyData.isEmpty
-                      ? const Center(child: Text('No data available'))
-                      : BarChart(
-                        BarChartData(
-                          alignment: BarChartAlignment.spaceAround,
-                          maxY: _getMaxYValue(),
-                          barTouchData: BarTouchData(
-                            enabled: true,
-                            touchTooltipData: BarTouchTooltipData(
-                              getTooltipColor: (group) => Colors.blueGrey,
-                              getTooltipItem: (
-                                group,
-                                groupIndex,
-                                rod,
-                                rodIndex,
-                              ) {
-                                return BarTooltipItem(
-                                  '${rod.toY.round()} questions',
-                                  const TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                );
-                              },
-                            ),
-                          ),
-                          titlesData: FlTitlesData(
-                            show: true,
-                            bottomTitles: AxisTitles(
-                              sideTitles: SideTitles(
-                                showTitles: true,
-                                getTitlesWidget: (value, meta) {
-                                  return Text(
-                                    _getDayLabel(value.toInt()),
-                                    style: const TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  );
-                                },
+                  titlesData: FlTitlesData(
+                    show: true,
+                    bottomTitles: AxisTitles(
+                      sideTitles: SideTitles(
+                        showTitles: true,
+                        getTitlesWidget: (value, meta) {
+                          return Padding(
+                            padding: const EdgeInsets.only(top: 8.0),
+                            child: Text(
+                              _getDayLabel(value.toInt()),
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.grey.shade400,
                               ),
                             ),
-                            leftTitles: AxisTitles(
-                              sideTitles: SideTitles(
-                                showTitles: true,
-                                reservedSize: 40,
-                                getTitlesWidget: (value, meta) {
-                                  return Text(
-                                    value.toInt().toString(),
-                                    style: const TextStyle(fontSize: 12),
-                                  );
-                                },
-                              ),
-                            ),
-                            topTitles: const AxisTitles(
-                              sideTitles: SideTitles(showTitles: false),
-                            ),
-                            rightTitles: const AxisTitles(
-                              sideTitles: SideTitles(showTitles: false),
-                            ),
-                          ),
-                          gridData: FlGridData(
-                            show: true,
-                            drawVerticalLine: false,
-                            horizontalInterval: 5,
-                            getDrawingHorizontalLine: (value) {
-                              return FlLine(
-                                color: Colors.grey.shade300,
-                                strokeWidth: 1,
-                              );
-                            },
-                          ),
-                          borderData: FlBorderData(show: false),
-                          barGroups: _buildBarGroups(),
-                        ),
+                          );
+                        },
                       ),
-            ),
-          ],
-        ),
+                    ),
+                    leftTitles: AxisTitles(
+                      sideTitles: SideTitles(
+                        showTitles: true,
+                        reservedSize: 30,
+                        getTitlesWidget: (value, meta) {
+                          if (value == 0) return const SizedBox.shrink();
+                          return Text(
+                            value.toInt().toString(),
+                            style: TextStyle(fontSize: 11, color: Colors.grey.shade400),
+                          );
+                        },
+                      ),
+                    ),
+                    topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                    rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  ),
+                  gridData: FlGridData(
+                    show: true,
+                    drawVerticalLine: false,
+                    horizontalInterval: 5,
+                    getDrawingHorizontalLine: (value) {
+                      return FlLine(
+                        color: Colors.grey.shade100,
+                        strokeWidth: 1,
+                        dashArray: [5, 5], // Dashed lines
+                      );
+                    },
+                  ),
+                  borderData: FlBorderData(show: false),
+                  barGroups: _buildBarGroups(),
+                ),
+              ),
       ),
     );
   }
 
-  /// Accuracy Pie Chart
+  /// Accuracy Pie Chart (Modern Donut)
   Widget _buildAccuracySection() {
     final totalCorrect = _totalStats['total_correct'] ?? 0;
     final totalWrong = _totalStats['total_wrong'] ?? 0;
     final total = totalCorrect + totalWrong;
 
-    return Card(
-      elevation: 3,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: _cardColor,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.05),
+            blurRadius: 20,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: total == 0
+          ? const Center(
+              child: Padding(
+                padding: EdgeInsets.all(32.0),
+                child: Text(
+                  'Start solving to see accuracy!',
+                  style: TextStyle(fontSize: 14, color: Colors.grey),
+                ),
+              ),
+            )
+          : Row(
               children: [
-                Icon(Icons.pie_chart, color: Colors.green.shade700, size: 28),
-                const SizedBox(width: 12),
-                const Text(
-                  'Accuracy',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black87,
+                Expanded(
+                  flex: 3,
+                  child: SizedBox(
+                    height: 180,
+                    child: PieChart(
+                      PieChartData(
+                        sectionsSpace: 4,
+                        centerSpaceRadius: 40, // Donut style
+                        sections: [
+                          PieChartSectionData(
+                            value: totalCorrect.toDouble(),
+                            title: '${(totalCorrect / total * 100).toStringAsFixed(0)}%',
+                            color: const Color(0xFF10B981), // Modern Emerald Green
+                            radius: 50,
+                            titleStyle: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                          PieChartSectionData(
+                            value: totalWrong.toDouble(),
+                            title: '', // Hide label for wrong if small
+                            color: const Color(0xFFEF4444), // Modern Red
+                            radius: 40, // Slightly smaller
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 24),
+                Expanded(
+                  flex: 2,
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildLegendItem('Correct', const Color(0xFF10B981), totalCorrect),
+                      const SizedBox(height: 16),
+                      _buildLegendItem('Wrong', const Color(0xFFEF4444), totalWrong),
+                    ],
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 20),
-            total == 0
-                ? const Center(
-                  child: Padding(
-                    padding: EdgeInsets.all(32.0),
-                    child: Text(
-                      'No data yet. Start solving questions!',
-                      style: TextStyle(fontSize: 16, color: Colors.grey),
-                    ),
-                  ),
-                )
-                : Row(
-                  children: [
-                    // Pie Chart
-                    Expanded(
-                      flex: 2,
-                      child: SizedBox(
-                        height: 200,
-                        child: PieChart(
-                          PieChartData(
-                            sectionsSpace: 2,
-                            centerSpaceRadius: 40,
-                            sections: [
-                              PieChartSectionData(
-                                value: totalCorrect.toDouble(),
-                                title:
-                                    '${(totalCorrect / total * 100).toStringAsFixed(1)}%',
-                                color: Colors.green,
-                                radius: 60,
-                                titleStyle: const TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
-                                ),
-                              ),
-                              PieChartSectionData(
-                                value: totalWrong.toDouble(),
-                                title:
-                                    '${(totalWrong / total * 100).toStringAsFixed(1)}%',
-                                color: Colors.red,
-                                radius: 60,
-                                titleStyle: const TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 20),
-                    // Legend
-                    Expanded(
-                      flex: 1,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _buildLegendItem(
-                            'Correct',
-                            Colors.green,
-                            totalCorrect,
-                          ),
-                          const SizedBox(height: 12),
-                          _buildLegendItem('Wrong', Colors.red, totalWrong),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-          ],
-        ),
-      ),
     );
   }
 
@@ -391,108 +425,105 @@ class _StatsScreenState extends State<StatsScreen> {
   Widget _buildTotalSummary() {
     final totalSolved = _totalStats['total_solved'] ?? 0;
     final totalCorrect = _totalStats['total_correct'] ?? 0;
-    final totalWrong = _totalStats['total_wrong'] ?? 0;
-    final accuracy =
-        totalSolved > 0
-            ? (totalCorrect / totalSolved * 100).toStringAsFixed(1)
-            : '0.0';
+    final accuracy = totalSolved > 0
+        ? (totalCorrect / totalSolved * 100).toStringAsFixed(1)
+        : '0.0';
 
+    return Row(
+      children: [
+        Expanded(
+          child: _buildSummaryCard(
+            'Questions\nSolved',
+            totalSolved.toString(),
+            Icons.quiz_rounded,
+            Colors.blue,
+          ),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: _buildSummaryCard(
+            'Overall\nAccuracy',
+            '$accuracy%',
+            Icons.verified_rounded,
+            Colors.green,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildLegendItem(String label, Color color, int value) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'All-Time Summary',
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-            color: Colors.black87,
-          ),
-        ),
-        const SizedBox(height: 12),
         Row(
           children: [
-            Expanded(
-              child: _buildSummaryCard(
-                'Total Solved',
-                totalSolved.toString(),
-                Icons.quiz,
-                Colors.blue,
-              ),
+            Container(
+              width: 12,
+              height: 12,
+              decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(4)),
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _buildSummaryCard(
-                'Accuracy',
-                '$accuracy%',
-                Icons.verified,
-                Colors.green,
-              ),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.grey.shade700),
             ),
           ],
+        ),
+        const SizedBox(height: 4),
+        Text(
+          value.toString(),
+          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black87),
         ),
       ],
     );
   }
 
-  /// Helper: Build legend item
-  Widget _buildLegendItem(String label, Color color, int value) {
-    return Row(
-      children: [
-        Container(
-          width: 16,
-          height: 16,
-          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-        ),
-        const SizedBox(width: 8),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              label,
-              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+  Widget _buildSummaryCard(String label, String value, IconData icon, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+      decoration: BoxDecoration(
+        color: _cardColor,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.05),
+            blurRadius: 20,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.1),
+              shape: BoxShape.circle,
             ),
-            Text(
-              value.toString(),
-              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+            child: Icon(icon, color: color, size: 28),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color: color.withOpacity(0.8),
             ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  /// Helper: Build summary card
-  Widget _buildSummaryCard(
-    String label,
-    String value,
-    IconData icon,
-    Color color,
-  ) {
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            Icon(icon, color: color, size: 32),
-            const SizedBox(height: 8),
-            Text(
-              value,
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: color,
-              ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+              color: Colors.grey.shade500,
+              height: 1.2,
             ),
-            const SizedBox(height: 4),
-            Text(
-              label,
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -506,64 +537,36 @@ class _StatsScreenState extends State<StatsScreen> {
 
     String timeSavedText;
     if (hours > 0 && minutes > 0) {
-      timeSavedText = '$hours Hours $minutes Mins';
+      timeSavedText = '${hours}h ${minutes}m';
     } else if (hours > 0) {
-      timeSavedText = '$hours Hours';
+      timeSavedText = '${hours} Hours';
     } else {
       timeSavedText = '$minutes Mins';
     }
 
-    return Card(
-      elevation: 3,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.psychology, color: Colors.purple.shade700, size: 28),
-                const SizedBox(width: 12),
-                const Text(
-                  'Focus Impact',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black87,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
-            Row(
-              children: [
-                Expanded(
-                  child: _buildFocusCard(
-                    icon: Icons.shield,
-                    value: totalInterventions.toString(),
-                    label: 'Distractions\nBlocked',
-                    color: Colors.blue,
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: _buildFocusCard(
-                    icon: Icons.hourglass_bottom,
-                    value: timeSavedText,
-                    label: 'Time Saved',
-                    color: Colors.green,
-                  ),
-                ),
-              ],
-            ),
-          ],
+    return Row(
+      children: [
+        Expanded(
+          child: _buildFocusCard(
+            icon: Icons.shield_rounded,
+            value: totalInterventions.toString(),
+            label: 'Distractions\nBlocked',
+            color: const Color(0xFF6366F1), // Indigo
+          ),
         ),
-      ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: _buildFocusCard(
+            icon: Icons.hourglass_bottom_rounded,
+            value: timeSavedText,
+            label: 'Estimated\nTime Saved',
+            color: const Color(0xFF8B5CF6), // Violet
+          ),
+        ),
+      ],
     );
   }
 
-  /// Helper: Build focus impact card
   Widget _buildFocusCard({
     required IconData icon,
     required String value,
@@ -571,32 +574,39 @@ class _StatsScreenState extends State<StatsScreen> {
     required Color color,
   }) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.3), width: 1.5),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: color.withOpacity(0.1), width: 1),
+        boxShadow: [
+          BoxShadow(
+            color: color.withOpacity(0.05),
+            blurRadius: 15,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Column(
         children: [
-          Icon(icon, color: color, size: 36),
+          Icon(icon, color: color, size: 32),
           const SizedBox(height: 12),
           Text(
             value,
             style: TextStyle(
-              fontSize: 22,
+              fontSize: 20,
               fontWeight: FontWeight.bold,
-              color: color,
+              color: Colors.black87,
             ),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 4),
           Text(
             label,
             textAlign: TextAlign.center,
             style: TextStyle(
-              fontSize: 13,
-              color: Colors.grey[700],
-              height: 1.2,
+              fontSize: 12,
+              color: Colors.grey.shade500,
+              height: 1.3,
             ),
           ),
         ],
@@ -604,35 +614,24 @@ class _StatsScreenState extends State<StatsScreen> {
     );
   }
 
-  /// Top Distractions Today Section
+/// Top Distractions Today Section
   Widget _buildTopDistractionsSection() {
-    return Card(
-      elevation: 3,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.phone_android, color: Colors.red.shade700, size: 28),
-                const SizedBox(width: 12),
-                const Text(
-                  'Top Distractions Today',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black87,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            const UsageList(),
-          ],
-        ),
+    return Container(
+
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16), 
+      
+      decoration: BoxDecoration(
+        color: _cardColor,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.05),
+            blurRadius: 16, 
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
+      child: const UsageList(),
     );
   }
 
@@ -645,9 +644,18 @@ class _StatsScreenState extends State<StatsScreen> {
         barRods: [
           BarChartRodData(
             toY: solvedCount.toDouble(),
-            color: Colors.blue,
-            width: 20,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
+            gradient: LinearGradient(
+              colors: [Colors.blue.shade300, Colors.blue.shade600],
+              begin: Alignment.bottomCenter,
+              end: Alignment.topCenter,
+            ),
+            width: 16,
+            backDrawRodData: BackgroundBarChartRodData(
+              show: true,
+              toY: _getMaxYValue(), // Full height background
+              color: Colors.grey.shade50,
+            ),
+            borderRadius: BorderRadius.circular(8),
           ),
         ],
       );

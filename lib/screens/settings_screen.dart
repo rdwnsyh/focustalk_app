@@ -17,6 +17,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _notificationsEnabled = true;
   bool _isLoading = true;
 
+  // Modern Color Palette based on your preferences
+  final Color _primaryPurple = const Color(0xFFFF8C42);
+  final Color _bgColor = const Color.fromARGB(255, 253, 245, 230);
+
   @override
   void initState() {
     super.initState();
@@ -47,6 +51,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
         SnackBar(
           content: Text('Daily goal updated to $newGoal questions'),
           backgroundColor: Colors.green,
+          behavior: SnackBarBehavior.floating, // Modern floating snackbar
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
           duration: const Duration(seconds: 2),
         ),
       );
@@ -69,6 +75,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
             value ? 'Notifications enabled' : 'Notifications disabled',
           ),
           backgroundColor: value ? Colors.green : Colors.orange,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
           duration: const Duration(seconds: 2),
         ),
       );
@@ -77,52 +85,51 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   /// CRITICAL: Reset daily progress for demo purposes
   Future<void> _resetDailyProgress() async {
-    // Show confirmation dialog
     final confirm = await showDialog<bool>(
       context: context,
-      builder:
-          (context) => AlertDialog(
-            title: const Text('Reset Daily Progress?'),
-            content: const Text(
-              'This will reset your solved questions count to 0 and re-enable blocking.\n\nThis action is useful for testing and demos.',
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context, false),
-                child: const Text('Cancel'),
-              ),
-              ElevatedButton(
-                onPressed: () => Navigator.pop(context, true),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.red,
-                  foregroundColor: Colors.white,
-                ),
-                child: const Text('Reset'),
-              ),
-            ],
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('Reset Daily Progress?', style: TextStyle(fontWeight: FontWeight.bold)),
+        content: const Text(
+          'This will reset your solved questions count to 0 and re-enable blocking.\n\nThis action is useful for testing and demos.',
+          style: TextStyle(height: 1.5),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
           ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.redAccent,
+              foregroundColor: Colors.white,
+              elevation: 0,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            child: const Text('Reset'),
+          ),
+        ],
+      ),
     );
 
     if (confirm == true) {
       final prefs = await SharedPreferences.getInstance();
-
-      // Reset progress
       await prefs.setInt('solved_today', 0);
-
-      // Keep the current date so it doesn't auto-reset
       final today = DateTime.now().toIso8601String().split('T')[0];
       await prefs.setString('last_solved_date', today);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('✅ Progress Reset! Blocking is active again.'),
+          SnackBar(
+            content: const Text('✅ Progress Reset! Blocking is active again.'),
             backgroundColor: Colors.green,
-            duration: Duration(seconds: 3),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            duration: const Duration(seconds: 3),
           ),
         );
       }
-
       print('🔄 Daily progress reset to 0 for demo/testing');
     }
   }
@@ -133,97 +140,116 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
     await showDialog(
       context: context,
-      builder:
-          (context) => StatefulBuilder(
-            builder:
-                (context, setDialogState) => AlertDialog(
-                  title: const Text('Set Daily Goal'),
-                  content: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        '$tempGoal Questions',
-                        style: const TextStyle(
-                          fontSize: 32,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.purple,
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      Slider(
-                        value: tempGoal.toDouble(),
-                        min: 5,
-                        max: 50,
-                        divisions: 9,
-                        label: '$tempGoal',
-                        onChanged: (value) {
-                          setDialogState(() {
-                            tempGoal = value.toInt();
-                          });
-                        },
-                      ),
-                      const SizedBox(height: 8),
-                      const Text(
-                        'Choose between 5-50 questions per day',
-                        style: TextStyle(fontSize: 12, color: Colors.grey),
-                      ),
-                    ],
-                  ),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(context),
-                      child: const Text('Cancel'),
-                    ),
-                    ElevatedButton(
-                      onPressed: () {
-                        _updateDailyGoal(tempGoal);
-                        Navigator.pop(context);
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.purple,
-                        foregroundColor: Colors.white,
-                      ),
-                      child: const Text('Save'),
-                    ),
-                  ],
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: const Center(child: Text('Set Daily Goal', style: TextStyle(fontWeight: FontWeight.bold))),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
+                decoration: BoxDecoration(
+                  color: _primaryPurple.withOpacity(0.1),
+                  shape: BoxShape.circle,
                 ),
+                child: Text(
+                  '$tempGoal',
+                  style: TextStyle(
+                    fontSize: 36,
+                    fontWeight: FontWeight.bold,
+                    color: _primaryPurple,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Questions per day',
+                style: TextStyle(fontWeight: FontWeight.w500, color: Colors.grey),
+              ),
+              const SizedBox(height: 20),
+              SliderTheme(
+                data: SliderTheme.of(context).copyWith(
+                  activeTrackColor: _primaryPurple,
+                  inactiveTrackColor: _primaryPurple.withOpacity(0.2),
+                  thumbColor: _primaryPurple,
+                  overlayColor: _primaryPurple.withOpacity(0.1),
+                ),
+                child: Slider(
+                  value: tempGoal.toDouble(),
+                  min: 5,
+                  max: 50,
+                  divisions: 9,
+                  label: '$tempGoal',
+                  onChanged: (value) {
+                    setDialogState(() {
+                      tempGoal = value.toInt();
+                    });
+                  },
+                ),
+              ),
+            ],
           ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                _updateDailyGoal(tempGoal);
+                Navigator.pop(context);
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _primaryPurple,
+                foregroundColor: Colors.white,
+                elevation: 0,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+              child: const Text('Save Goal'),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[50],
+      backgroundColor: _bgColor,
       appBar: AppBar(
-        title: const Text('Settings'),
-        backgroundColor: Colors.purple,
+        title: const Text(
+          'Settings',
+          style: TextStyle(fontWeight: FontWeight.w700, fontSize: 22),
+        ),
+        centerTitle: true,
+        flexibleSpace: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [_primaryPurple, const Color.fromARGB(255, 213, 123, 33)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+        ),
         foregroundColor: Colors.white,
         elevation: 0,
       ),
-      body:
-          _isLoading
-              ? const Center(child: CircularProgressIndicator())
-              : ListView(
-                padding: const EdgeInsets.all(16),
-                children: [
-                  // ==================== BLOCKING CONFIGURATION ====================
-                  _buildSectionHeader('Blocking Configuration'),
-                  Card(
-                    elevation: 2,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: ListTile(
-                      leading: const Icon(
-                        Icons.grid_view_rounded,
-                        color: Colors.blue,
-                      ),
-                      title: const Text('Monitored Apps'),
-                      subtitle: const Text(
-                        'Manage which apps trigger blocking',
-                      ),
-                      trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : ListView(
+              padding: const EdgeInsets.all(20),
+              children: [
+                // ==================== BLOCKING CONFIGURATION ====================
+                _buildSectionHeader('Blocking Configuration'),
+                _buildSettingsContainer(
+                  children: [
+                    _buildSettingsTile(
+                      icon: Icons.grid_view_rounded,
+                      iconColor: Colors.blue,
+                      title: 'Monitored Apps',
+                      subtitle: 'Manage which apps trigger blocking',
                       onTap: () {
                         Navigator.push(
                           context,
@@ -233,154 +259,226 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         );
                       },
                     ),
-                  ),
+                  ],
+                ),
 
-                  const SizedBox(height: 24),
+                const SizedBox(height: 24),
 
-                  // ==================== GENERAL SECTION ====================
-                  _buildSectionHeader('General'),
-                  Card(
-                    elevation: 2,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+                // ==================== GENERAL SECTION ====================
+                _buildSectionHeader('General'),
+                _buildSettingsContainer(
+                  children: [
+                    _buildSettingsTile(
+                      icon: Icons.flag_rounded,
+                      iconColor: Colors.purple,
+                      title: 'Daily Goal',
+                      subtitle: '$_dailyGoal questions per day',
+                      onTap: _showDailyGoalDialog,
                     ),
-                    child: Column(
-                      children: [
-                        ListTile(
-                          leading: const Icon(Icons.flag, color: Colors.purple),
-                          title: const Text('Daily Goal'),
-                          subtitle: Text('$_dailyGoal questions per day'),
-                          trailing: const Icon(
-                            Icons.arrow_forward_ios,
-                            size: 16,
-                          ),
-                          onTap: _showDailyGoalDialog,
-                        ),
-                        const Divider(height: 1),
-                        SwitchListTile(
-                          secondary: const Icon(
-                            Icons.notifications,
-                            color: Colors.orange,
-                          ),
-                          title: const Text('Study Reminders'),
-                          subtitle: const Text('3-hour reminder notifications'),
-                          value: _notificationsEnabled,
-                          onChanged: _toggleNotifications,
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 24),
-
-                  // ==================== DEVELOPER / DEMO TOOLS ====================
-                  _buildSectionHeader('Developer / Demo Tools'),
-                  Card(
-                    elevation: 2,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Column(
-                      children: [
-                        ListTile(
-                          leading: const Icon(Icons.refresh, color: Colors.red),
-                          title: const Text('Reset Daily Progress'),
-                          subtitle: const Text(
-                            'Set solved count to 0 (for testing/demos)',
-                          ),
-                          trailing: const Icon(
-                            Icons.arrow_forward_ios,
-                            size: 16,
-                          ),
-                          onTap: _resetDailyProgress,
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 24),
-
-                  // ==================== ABOUT SECTION ====================
-                  _buildSectionHeader('About'),
-                  Card(
-                    elevation: 2,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Column(
-                      children: [
-                        const ListTile(
-                          leading: Icon(Icons.info, color: Colors.blue),
-                          title: Text('App Version'),
-                          subtitle: Text('v1.0.0'),
-                        ),
-                        const Divider(height: 1),
-                        ListTile(
-                          leading: const Icon(
-                            Icons.school,
-                            color: Colors.green,
-                          ),
-                          title: const Text('FocusTalk'),
-                          subtitle: const Text(
-                            'Consistent Learning Habit - Focus Aid App',
-                          ),
-                          onTap: () {
-                            showAboutDialog(
-                              context: context,
-                              applicationName: 'FocusTalk',
-                              applicationVersion: 'v1.0.0',
-                              applicationIcon: const Icon(
-                                Icons.school,
-                                size: 48,
-                                color: Colors.purple,
-                              ),
-                              children: [
-                                const Text(
-                                  'FocusTalk helps you build consistent learning habits by encouraging daily quiz completion.',
-                                ),
-                                const SizedBox(height: 16),
-                                const Text(
-                                  'Meet your daily goal to unlock unrestricted access to your favorite apps!',
-                                ),
-                              ],
-                            );
-                          },
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 32),
-
-                  // Additional Info
-                  Center(
-                    child: Text(
-                      'Made with ❤️ for Academic Focus',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey[600],
-                        fontStyle: FontStyle.italic,
+                    _buildDivider(),
+                    SwitchListTile(
+                      activeColor: _primaryPurple,
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                      secondary: _buildIconContainer(Icons.notifications_active_rounded, Colors.orange),
+                      title: const Text(
+                        'Study Reminders',
+                        style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
                       ),
+                      subtitle: const Text(
+                        '3-hour reminder notifications',
+                        style: TextStyle(fontSize: 13, color: Colors.grey),
+                      ),
+                      value: _notificationsEnabled,
+                      onChanged: _toggleNotifications,
                     ),
-                  ),
-                ],
-              ),
+                  ],
+                ),
+
+                const SizedBox(height: 24),
+
+                // ==================== DEVELOPER / DEMO TOOLS ====================
+                _buildSectionHeader('Developer Options'),
+                _buildSettingsContainer(
+                  children: [
+                    _buildSettingsTile(
+                      icon: Icons.refresh_rounded,
+                      iconColor: Colors.redAccent,
+                      title: 'Reset Daily Progress',
+                      subtitle: 'Set solved count to 0 (Demo Mode)',
+                      onTap: _resetDailyProgress,
+                      isDestructive: true, // Special styling for destructive actions
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 24),
+
+                // ==================== ABOUT SECTION ====================
+                _buildSectionHeader('About'),
+                _buildSettingsContainer(
+                  children: [
+                    _buildSettingsTile(
+                      icon: Icons.info_outline_rounded,
+                      iconColor: Colors.blueAccent,
+                      title: 'App Version',
+                      subtitle: 'v1.0.0',
+                      showArrow: false,
+                    ),
+                    _buildDivider(),
+                    _buildSettingsTile(
+                      icon: Icons.school_rounded,
+                      iconColor: Colors.green,
+                      title: 'About FocusTalk',
+                      subtitle: 'Consistent Learning Habit',
+                      onTap: () {
+                        showAboutDialog(
+                          context: context,
+                          applicationName: 'FocusTalk',
+                          applicationVersion: 'v1.0.0',
+                          applicationIcon: Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: _primaryPurple.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            child: Icon(Icons.school_rounded, size: 40, color: _primaryPurple),
+                          ),
+                          children: [
+                            const Text(
+                              'FocusTalk helps you build consistent learning habits by encouraging daily quiz completion.',
+                              style: TextStyle(fontSize: 14, height: 1.5),
+                            ),
+                            const SizedBox(height: 16),
+                            const Text(
+                              'Meet your daily goal to unlock unrestricted access to your favorite apps!',
+                              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                            ),
+                          ],
+                        );
+                      },
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 40),
+              ],
+            ),
     );
   }
 
-  /// Build section header widget
+  // ==================== MODERN UI HELPER WIDGETS ====================
+
   Widget _buildSectionHeader(String title) {
     return Padding(
-      padding: const EdgeInsets.only(left: 8, bottom: 8),
+      padding: const EdgeInsets.only(left: 12, bottom: 10),
       child: Text(
         title.toUpperCase(),
         style: TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.bold,
+          fontSize: 13,
+          fontWeight: FontWeight.w700,
           color: Colors.grey[600],
-          letterSpacing: 1.2,
+          letterSpacing: 1.0,
         ),
       ),
+    );
+  }
+
+  /// The main white container for settings groups
+  Widget _buildSettingsContainer({required List<Widget> children}) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 15,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
+      child: Column(
+        children: children,
+      ),
+    );
+  }
+
+  /// A custom clean tile widget
+  Widget _buildSettingsTile({
+    required IconData icon,
+    required Color iconColor,
+    required String title,
+    String? subtitle,
+    VoidCallback? onTap,
+    bool showArrow = true,
+    bool isDestructive = false,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(20),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          child: Row(
+            children: [
+              _buildIconContainer(icon, iconColor),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 16,
+                        color: isDestructive ? Colors.red : Colors.black87,
+                      ),
+                    ),
+                    if (subtitle != null) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        subtitle,
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              if (showArrow)
+                Icon(
+                  Icons.arrow_forward_ios_rounded,
+                  size: 16,
+                  color: Colors.grey[300],
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// The colored box around icons
+  Widget _buildIconContainer(IconData icon, Color color) {
+    return Container(
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Icon(icon, color: color, size: 22),
+    );
+  }
+
+  /// Subtle divider for inside the containers
+  Widget _buildDivider() {
+    return Padding(
+      padding: const EdgeInsets.only(left: 60), // Align with text
+      child: Divider(height: 1, color: Colors.grey[100]),
     );
   }
 }

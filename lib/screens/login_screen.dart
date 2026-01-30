@@ -152,7 +152,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   keyboardType: TextInputType.emailAddress,
                   enabled: !_isLoading,
                   decoration: InputDecoration(
-                    hintText: 'your.email@example.com',
+                    hintText: 'your email',
                     hintStyle: const TextStyle(color: Colors.grey),
                     filled: true,
                     fillColor: Colors.grey.shade50,
@@ -247,7 +247,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     return null;
                   },
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 10),
 
                 // Options Row: Remember Me + Forgot Password
                 Row(
@@ -293,7 +293,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 15),
 
                 // Login Button
                 SizedBox(
@@ -353,7 +353,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   child: OutlinedButton.icon(
                     onPressed: _isLoading ? null : _handleGoogleSignIn,
                     icon: Image.asset(
-                      'assets/images/logo.png',
+                      'assets/images/google-36.png',
                       height: 24,
                       width: 24,
                       errorBuilder: (context, error, stackTrace) {
@@ -376,7 +376,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
                 ),
-                const SizedBox(height: 32),
+                const SizedBox(height: 20),
 
                 // Footer: Don't have an account?
                 Row(
