@@ -205,6 +205,34 @@ void onStart(ServiceInstance service) async {
               return;
             }
 
+            // Check if app has temporary unlock (25-second access)
+            final unlockExpiry = prefs.getInt('unlock_expiry_$currentApp');
+            if (unlockExpiry != null) {
+              final now = DateTime.now().millisecondsSinceEpoch;
+              if (now < unlockExpiry) {
+                final secondsLeft = ((unlockExpiry - now) / 1000).ceil();
+                print(
+                  '🔓 App temporarily unlocked: $currentApp ($secondsLeft seconds left)',
+                );
+                // Update notification
+                if (service is AndroidServiceInstance) {
+                  service.setForegroundNotificationInfo(
+                    title: "FocusTalk: Temporary Access",
+                    content:
+                        "⏱️ ${currentApp?.split('.').last}: $secondsLeft seconds left",
+                  );
+                }
+                // Don't show overlay - user has temporary access
+                appSessionSeconds = 0;
+                trackedApp = null;
+                return;
+              } else {
+                // Unlock expired - remove it
+                print('⏰ Temporary unlock expired for $currentApp');
+                await prefs.remove('unlock_expiry_$currentApp');
+              }
+            }
+
             // Check if we're still tracking the same app
             if (trackedApp == currentApp) {
               // Same app - increment timer

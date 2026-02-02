@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'package:focustalk_app/services/auth_service.dart';
 import 'package:focustalk_app/services/database_helper.dart';
+// import 'package:focustalk_app/screens/edit_profile_screen.dart';
 import 'login_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -38,12 +39,28 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<void> _loadUserData() async {
     final prefs = await SharedPreferences.getInstance();
-    final userDataJson = prefs.getString('user_data');
 
-    if (userDataJson != null) {
+    // Get user data from individual keys (current auth approach)
+    final userEmail = prefs.getString('user_email');
+    final userName = prefs.getString('user_name');
+    final userPhoto = prefs.getString('user_photo');
+
+    if (userEmail != null) {
       setState(() {
-        userData = jsonDecode(userDataJson);
+        userData = {
+          'email': userEmail,
+          'full_name': userName ?? 'User',
+          'photo_url': userPhoto ?? '',
+        };
       });
+    } else {
+      // Fallback: Try old user_data JSON format
+      final userDataJson = prefs.getString('user_data');
+      if (userDataJson != null) {
+        setState(() {
+          userData = jsonDecode(userDataJson);
+        });
+      }
     }
   }
 
@@ -69,28 +86,39 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _handleLogout() async {
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: _bgOldLace,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Logout', style: TextStyle(fontWeight: FontWeight.bold)),
-        content: const Text('Are you sure you want to logout?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.redAccent,
-              foregroundColor: Colors.white,
-              elevation: 0,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      builder:
+          (context) => AlertDialog(
+            backgroundColor: _bgOldLace,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
             ),
-            child: const Text('Logout'),
+            title: const Text(
+              'Logout',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            content: const Text('Are you sure you want to logout?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text(
+                  'Cancel',
+                  style: TextStyle(color: Colors.grey),
+                ),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(context, true),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.redAccent,
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+                child: const Text('Logout'),
+              ),
+            ],
           ),
-        ],
-      ),
     );
 
     if (confirmed == true) {
@@ -154,12 +182,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       child: CircleAvatar(
                         radius: 55,
                         backgroundColor: _bgOldLace,
-                        backgroundImage: photoUrl != null && photoUrl.isNotEmpty
-                            ? NetworkImage(photoUrl)
-                            : null,
-                        child: photoUrl == null || photoUrl.isEmpty
-                            ? Icon(Icons.person, size: 60, color: _primaryOrange)
-                            : null,
+                        backgroundImage:
+                            photoUrl != null && photoUrl.isNotEmpty
+                                ? NetworkImage(photoUrl)
+                                : null,
+                        child:
+                            photoUrl == null || photoUrl.isEmpty
+                                ? Icon(
+                                  Icons.person,
+                                  size: 60,
+                                  color: _primaryOrange,
+                                )
+                                : null,
                       ),
                     ),
                     const SizedBox(height: 16),
@@ -174,7 +208,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                     const SizedBox(height: 4),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 4,
+                      ),
                       decoration: BoxDecoration(
                         color: Colors.white.withOpacity(0.2),
                         borderRadius: BorderRadius.circular(20),
@@ -203,7 +240,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   const SizedBox(height: 24),
                   _buildSectionTitle('STATISTICS'),
                   const SizedBox(height: 12),
-                  
+
                   // Statistics Grid (Clean Style)
                   GridView.count(
                     crossAxisCount: 2,
@@ -250,9 +287,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       icon: Icons.person_outline_rounded,
                       title: 'Edit Profile',
                       color: Colors.blue,
-                      onTap: () {
-                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('✨ Edit Profile coming soon')),
+                      onTap: () async {
+                        // TODO: Uncomment when EditProfileScreen is created
+                        // final result = await Navigator.push(
+                        //   context,
+                        //   MaterialPageRoute(
+                        //     builder: (context) => const EditProfileScreen(),
+                        //   ),
+                        // );
+                        // if (result == true && mounted) {
+                        //   _loadUserData();
+                        // }
+
+                        // Temporary: Show coming soon message
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Edit Profile feature coming soon!'),
+                            backgroundColor: Colors.orange,
+                          ),
                         );
                       },
                     ),
@@ -263,7 +315,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       color: Colors.orange,
                       onTap: () {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('🔔 Notification settings coming soon')),
+                          const SnackBar(
+                            content: Text(
+                              '🔔 Notification settings coming soon',
+                            ),
+                          ),
                         );
                       },
                     ),
@@ -308,15 +364,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       icon: const Icon(Icons.logout_rounded, size: 20),
                       label: const Text(
                         'Log Out',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.redAccent,
-                        foregroundColor: const Color.fromARGB(255, 255, 255, 255),
+                        foregroundColor: const Color.fromARGB(
+                          255,
+                          255,
+                          255,
+                          255,
+                        ),
                         elevation: 0, // Flat for modern look
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(16),
-                          side: BorderSide(color: Colors.redAccent.withOpacity(0.2), width: 1),
+                          side: BorderSide(
+                            color: Colors.redAccent.withOpacity(0.2),
+                            width: 1,
+                          ),
                         ),
                       ),
                     ),
@@ -408,7 +475,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                 ),
               ),
-              Icon(Icons.arrow_forward_ios_rounded, size: 16, color: Colors.grey[300]),
+              Icon(
+                Icons.arrow_forward_ios_rounded,
+                size: 16,
+                color: Colors.grey[300],
+              ),
             ],
           ),
         ),
@@ -472,33 +543,42 @@ class _ProfileScreenState extends State<ProfileScreen> {
   void _showAboutDialog() {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('About FocusTalk', style: TextStyle(fontWeight: FontWeight.bold)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('FocusTalk App', style: TextStyle(fontWeight: FontWeight.bold)),
-            const SizedBox(height: 4),
-            Text(
-              'Your personal focus assistant.',
-              style: TextStyle(color: Colors.grey[700]),
+      builder:
+          (context) => AlertDialog(
+            backgroundColor: Colors.white,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
             ),
-            const SizedBox(height: 16),
-            const Divider(),
-            const SizedBox(height: 16),
-            const Text('Version 1.0.0'),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Close'),
+            title: const Text(
+              'About FocusTalk',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'FocusTalk App',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Your personal focus assistant.',
+                  style: TextStyle(color: Colors.grey[700]),
+                ),
+                const SizedBox(height: 16),
+                const Divider(),
+                const SizedBox(height: 16),
+                const Text('Version 1.0.0'),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Close'),
+              ),
+            ],
           ),
-        ],
-      ),
     );
   }
 }

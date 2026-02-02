@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:focustalk_app/services/database_helper.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:focustalk_app/screens/home_screen.dart';
+import 'package:focustalk_app/screens/main_screen.dart';
 
 class PracticeQuizScreen extends StatefulWidget {
   const PracticeQuizScreen({super.key});
@@ -25,11 +25,13 @@ class _PracticeQuizScreenState extends State<PracticeQuizScreen> {
 
   // --- PALET WARNA (Sesuai Request) ---
   final Color _colOrange = const Color(0xFFFF7043); // Modern Orange
-  final Color _colRed = const Color(0xFFEF5350);    // Soft Red
-  final Color _colGreen = const Color(0xFF66BB6A);  // Soft Green (Wajib untuk quiz benar)
-  final Color _bgGrey = const Color(0xFFF4F6F8);    // Cool Grey Background
-  final Color _textDark = const Color(0xFF263238);  // Dark Blue-Grey Text
-  final Color _textGrey = const Color(0xFF78909C);  // Light Grey Text
+  final Color _colRed = const Color(0xFFEF5350); // Soft Red
+  final Color _colGreen = const Color(
+    0xFF66BB6A,
+  ); // Soft Green (Wajib untuk quiz benar)
+  final Color _bgGrey = const Color(0xFFF4F6F8); // Cool Grey Background
+  final Color _textDark = const Color(0xFF263238); // Dark Blue-Grey Text
+  final Color _textGrey = const Color(0xFF78909C); // Light Grey Text
 
   @override
   void initState() {
@@ -76,7 +78,7 @@ class _PracticeQuizScreenState extends State<PracticeQuizScreen> {
           );
           Navigator.pushReplacement(
             context,
-            MaterialPageRoute(builder: (context) => const HomeScreen()),
+            MaterialPageRoute(builder: (context) => const MainScreen()),
           );
         }
         return;
@@ -189,18 +191,18 @@ class _PracticeQuizScreenState extends State<PracticeQuizScreen> {
                           ),
                           Text(
                             'Keep focusing!',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: _textGrey,
-                            ),
+                            style: TextStyle(fontSize: 12, color: _textGrey),
                           ),
                         ],
                       ),
                       IconButton(
-                        onPressed: () => Navigator.pushReplacement(
-                          context,
-                          MaterialPageRoute(builder: (context) => const HomeScreen()),
-                        ),
+                        onPressed:
+                            () => Navigator.pushReplacement(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const MainScreen(),
+                              ),
+                            ),
                         icon: Container(
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
@@ -239,7 +241,10 @@ class _PracticeQuizScreenState extends State<PracticeQuizScreen> {
                   ClipRRect(
                     borderRadius: BorderRadius.circular(10),
                     child: LinearProgressIndicator(
-                      value: _dailyGoal > 0 ? (_solvedToday / _dailyGoal).clamp(0.0, 1.0) : 0,
+                      value:
+                          _dailyGoal > 0
+                              ? (_solvedToday / _dailyGoal).clamp(0.0, 1.0)
+                              : 0,
                       backgroundColor: Colors.grey.shade200,
                       valueColor: AlwaysStoppedAnimation(_colOrange),
                       minHeight: 10,
@@ -251,13 +256,16 @@ class _PracticeQuizScreenState extends State<PracticeQuizScreen> {
 
             // ================= MAIN QUIZ CONTENT =================
             Expanded(
-              child: isCompleted
-                  ? _buildSuccessView()
-                  : _isLoading
-                      ? Center(child: CircularProgressIndicator(color: _colOrange))
+              child:
+                  isCompleted
+                      ? _buildSuccessView()
+                      : _isLoading
+                      ? Center(
+                        child: CircularProgressIndicator(color: _colOrange),
+                      )
                       : _questionData == null
-                          ? const Center(child: Text('No question available'))
-                          : _buildQuizBody(),
+                      ? const Center(child: Text('No question available'))
+                      : _buildQuizBody(),
             ),
           ],
         ),
@@ -374,21 +382,22 @@ class _PracticeQuizScreenState extends State<PracticeQuizScreen> {
               color: bgColor,
               borderRadius: BorderRadius.circular(16),
               border: Border.all(color: borderColor, width: 2),
-              boxShadow: isSelected && !_isSubmitted
-                  ? [
-                      BoxShadow(
-                        color: _colOrange.withOpacity(0.2),
-                        blurRadius: 10,
-                        offset: const Offset(0, 4),
-                      )
-                    ]
-                  : [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.02),
-                        blurRadius: 5,
-                        offset: const Offset(0, 2),
-                      )
-                    ],
+              boxShadow:
+                  isSelected && !_isSubmitted
+                      ? [
+                        BoxShadow(
+                          color: _colOrange.withOpacity(0.2),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
+                        ),
+                      ]
+                      : [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.02),
+                          blurRadius: 5,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
             ),
             child: Row(
               children: [
@@ -418,7 +427,8 @@ class _PracticeQuizScreenState extends State<PracticeQuizScreen> {
                     option,
                     style: TextStyle(
                       fontSize: 16,
-                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                      fontWeight:
+                          isSelected ? FontWeight.w600 : FontWeight.w500,
                       color: textColor,
                     ),
                   ),
@@ -446,16 +456,24 @@ class _PracticeQuizScreenState extends State<PracticeQuizScreen> {
             margin: const EdgeInsets.only(bottom: 16),
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: _isCorrect! ? _colGreen.withOpacity(0.1) : _colRed.withOpacity(0.1),
+              color:
+                  _isCorrect!
+                      ? _colGreen.withOpacity(0.1)
+                      : _colRed.withOpacity(0.1),
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
-                color: _isCorrect! ? _colGreen.withOpacity(0.3) : _colRed.withOpacity(0.3),
+                color:
+                    _isCorrect!
+                        ? _colGreen.withOpacity(0.3)
+                        : _colRed.withOpacity(0.3),
               ),
             ),
             child: Row(
               children: [
                 Icon(
-                  _isCorrect! ? Icons.sentiment_very_satisfied : Icons.sentiment_dissatisfied,
+                  _isCorrect!
+                      ? Icons.sentiment_very_satisfied
+                      : Icons.sentiment_dissatisfied,
                   color: _isCorrect! ? Colors.green.shade700 : _colRed,
                 ),
                 const SizedBox(width: 12),
@@ -489,9 +507,10 @@ class _PracticeQuizScreenState extends State<PracticeQuizScreen> {
         SizedBox(
           height: 56,
           child: ElevatedButton(
-            onPressed: _selectedAnswer != null
-                ? (_isSubmitted ? _nextQuestion : _submitAnswer)
-                : null,
+            onPressed:
+                _selectedAnswer != null
+                    ? (_isSubmitted ? _nextQuestion : _submitAnswer)
+                    : null,
             style: ElevatedButton.styleFrom(
               backgroundColor: _colOrange,
               foregroundColor: Colors.white,
@@ -503,10 +522,7 @@ class _PracticeQuizScreenState extends State<PracticeQuizScreen> {
             ),
             child: Text(
               _isSubmitted ? 'Next Question' : 'Check Answer',
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
           ),
         ),
@@ -517,10 +533,14 @@ class _PracticeQuizScreenState extends State<PracticeQuizScreen> {
   List<String> _getOptions() {
     if (_questionData == null) return [];
     final options = <String>[];
-    if (_questionData!['option_a'] != null) options.add(_questionData!['option_a'] as String);
-    if (_questionData!['option_b'] != null) options.add(_questionData!['option_b'] as String);
-    if (_questionData!['option_c'] != null) options.add(_questionData!['option_c'] as String);
-    if (_questionData!['option_d'] != null) options.add(_questionData!['option_d'] as String);
+    if (_questionData!['option_a'] != null)
+      options.add(_questionData!['option_a'] as String);
+    if (_questionData!['option_b'] != null)
+      options.add(_questionData!['option_b'] as String);
+    if (_questionData!['option_c'] != null)
+      options.add(_questionData!['option_c'] as String);
+    if (_questionData!['option_d'] != null)
+      options.add(_questionData!['option_d'] as String);
     return options;
   }
 
@@ -559,11 +579,7 @@ class _PracticeQuizScreenState extends State<PracticeQuizScreen> {
             Text(
               'You solved $_dailyGoal questions today.\nBlocking is now disabled. Great job!',
               textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 16,
-                color: _textGrey,
-                height: 1.5,
-              ),
+              style: TextStyle(fontSize: 16, color: _textGrey, height: 1.5),
             ),
             const SizedBox(height: 48),
             SizedBox(
@@ -573,14 +589,16 @@ class _PracticeQuizScreenState extends State<PracticeQuizScreen> {
                 onPressed: () {
                   Navigator.pushReplacement(
                     context,
-                    MaterialPageRoute(builder: (context) => const HomeScreen()),
+                    MaterialPageRoute(builder: (context) => const MainScreen()),
                   );
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: _colOrange,
                   foregroundColor: Colors.white,
                   elevation: 0,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
                 ),
                 icon: const Icon(Icons.home_rounded),
                 label: const Text(

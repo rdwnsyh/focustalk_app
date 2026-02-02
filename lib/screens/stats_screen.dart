@@ -89,54 +89,80 @@ class _StatsScreenState extends State<StatsScreen> {
           ),
         ],
       ),
-      body: _isLoading
-          ? Center(child: CircularProgressIndicator(color: _primaryPurple))
-          : RefreshIndicator(
-              onRefresh: _loadStats,
-              color: _primaryPurple,
-              child: SingleChildScrollView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.fromLTRB(20, 100, 20, 20), // Top padding for extendBodyBehindAppBar
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Current Streak Card
-                    _buildStreakCard(),
-                    const SizedBox(height: 24),
+      body:
+          _isLoading
+              ? Center(child: CircularProgressIndicator(color: _primaryPurple))
+              : RefreshIndicator(
+                onRefresh: _loadStats,
+                color: _primaryPurple,
+                child: SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.fromLTRB(
+                    20,
+                    100,
+                    20,
+                    20,
+                  ), // Top padding for extendBodyBehindAppBar
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Current Streak Card
+                      _buildStreakCard(),
+                      const SizedBox(height: 24),
 
-                    // Weekly Progress Bar Chart
-                    _buildSectionHeader('Weekly Activity', Icons.bar_chart_rounded, Colors.blue),
-                    const SizedBox(height: 12),
-                    _buildWeeklyProgressSection(),
-                    const SizedBox(height: 24),
+                      // Weekly Progress Bar Chart
+                      _buildSectionHeader(
+                        'Weekly Activity',
+                        Icons.bar_chart_rounded,
+                        Colors.blue,
+                      ),
+                      const SizedBox(height: 12),
+                      _buildWeeklyProgressSection(),
+                      const SizedBox(height: 24),
 
-                    // Focus Impact Section
-                    _buildSectionHeader('Focus Impact', Icons.psychology_rounded, Colors.purple),
-                    const SizedBox(height: 12),
-                    _buildFocusImpactSection(),
-                    const SizedBox(height: 24),
+                      // Focus Impact Section
+                      _buildSectionHeader(
+                        'Focus Impact',
+                        Icons.psychology_rounded,
+                        Colors.purple,
+                      ),
+                      const SizedBox(height: 12),
+                      _buildFocusImpactSection(),
+                      const SizedBox(height: 24),
 
-                    // Top Distractions Today
-                    _buildSectionHeader('Top Distractions', Icons.phone_android_rounded, Colors.red),
-                    const SizedBox(height: 12),
-                    _buildTopDistractionsSection(),
-                    const SizedBox(height: 24),
+                      // Top Distractions Today
+                      _buildSectionHeader(
+                        'Top Distractions',
+                        Icons.phone_android_rounded,
+                        Colors.red,
+                      ),
+                      const SizedBox(height: 12),
+                      _buildTopDistractionsSection(),
+                      const SizedBox(height: 24),
 
-                    // Accuracy Pie Chart
-                    _buildSectionHeader('Accuracy Rate', Icons.pie_chart_rounded, Colors.green),
-                    const SizedBox(height: 12),
-                    _buildAccuracySection(),
-                    const SizedBox(height: 24),
+                      // Accuracy Pie Chart
+                      _buildSectionHeader(
+                        'Accuracy Rate',
+                        Icons.pie_chart_rounded,
+                        Colors.green,
+                      ),
+                      const SizedBox(height: 12),
+                      _buildAccuracySection(),
+                      const SizedBox(height: 24),
 
-                    // Total Summary Cards
-                    _buildSectionHeader('All-Time Summary', Icons.history_rounded, Colors.orange),
-                    const SizedBox(height: 12),
-                    _buildTotalSummary(),
-                    const SizedBox(height: 40), // Bottom spacer
-                  ],
+                      // Total Summary Cards
+                      _buildSectionHeader(
+                        'All-Time Summary',
+                        Icons.history_rounded,
+                        Colors.orange,
+                      ),
+                      const SizedBox(height: 12),
+                      _buildTotalSummary(),
+                      const SizedBox(height: 40), // Bottom spacer
+                    ],
+                  ),
                 ),
               ),
-            ),
     );
   }
 
@@ -190,7 +216,11 @@ class _StatsScreenState extends State<StatsScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.local_fire_department_rounded, color: Colors.white, size: 32),
+              const Icon(
+                Icons.local_fire_department_rounded,
+                color: Colors.white,
+                size: 32,
+              ),
               const SizedBox(width: 8),
               Text(
                 '$_currentStreak',
@@ -251,92 +281,105 @@ class _StatsScreenState extends State<StatsScreen> {
       ),
       child: SizedBox(
         height: 220,
-        child: _weeklyData.isEmpty
-            ? const Center(child: Text('No data available', style: TextStyle(color: Colors.grey)))
-            : BarChart(
-                BarChartData(
-                  alignment: BarChartAlignment.spaceAround,
-                  maxY: _getMaxYValue(),
-                  barTouchData: BarTouchData(
-                    enabled: true,
-                    touchTooltipData: BarTouchTooltipData(
-                      getTooltipColor: (group) => Colors.blueGrey.shade800,
-                      tooltipRoundedRadius: 8,
-                      tooltipPadding: const EdgeInsets.all(8),
-                      getTooltipItem: (group, groupIndex, rod, rodIndex) {
-                        return BarTooltipItem(
-                          '${rod.toY.round()}',
-                          const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
-                          ),
-                          children: [
-                            const TextSpan(
-                              text: '\nquestions',
-                              style: TextStyle(
-                                color: Colors.white70,
-                                fontSize: 10,
-                                fontWeight: FontWeight.normal,
-                              ),
+        child:
+            _weeklyData.isEmpty
+                ? const Center(
+                  child: Text(
+                    'No data available',
+                    style: TextStyle(color: Colors.grey),
+                  ),
+                )
+                : BarChart(
+                  BarChartData(
+                    alignment: BarChartAlignment.spaceAround,
+                    maxY: _getMaxYValue(),
+                    barTouchData: BarTouchData(
+                      enabled: true,
+                      touchTooltipData: BarTouchTooltipData(
+                        getTooltipColor: (group) => Colors.blueGrey.shade800,
+                        tooltipRoundedRadius: 8,
+                        tooltipPadding: const EdgeInsets.all(8),
+                        getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                          return BarTooltipItem(
+                            '${rod.toY.round()}',
+                            const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
                             ),
-                          ],
+                            children: [
+                              const TextSpan(
+                                text: '\nquestions',
+                                style: TextStyle(
+                                  color: Colors.white70,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.normal,
+                                ),
+                              ),
+                            ],
+                          );
+                        },
+                      ),
+                    ),
+                    titlesData: FlTitlesData(
+                      show: true,
+                      bottomTitles: AxisTitles(
+                        sideTitles: SideTitles(
+                          showTitles: true,
+                          getTitlesWidget: (value, meta) {
+                            return Padding(
+                              padding: const EdgeInsets.only(top: 8.0),
+                              child: Text(
+                                _getDayLabel(value.toInt()),
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.grey.shade400,
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                      leftTitles: AxisTitles(
+                        sideTitles: SideTitles(
+                          showTitles: true,
+                          reservedSize: 30,
+                          getTitlesWidget: (value, meta) {
+                            if (value == 0) return const SizedBox.shrink();
+                            return Text(
+                              value.toInt().toString(),
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: Colors.grey.shade400,
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                      topTitles: const AxisTitles(
+                        sideTitles: SideTitles(showTitles: false),
+                      ),
+                      rightTitles: const AxisTitles(
+                        sideTitles: SideTitles(showTitles: false),
+                      ),
+                    ),
+                    gridData: FlGridData(
+                      show: true,
+                      drawVerticalLine: false,
+                      horizontalInterval: 5,
+                      getDrawingHorizontalLine: (value) {
+                        return FlLine(
+                          color: Colors.grey.shade100,
+                          strokeWidth: 1,
+                          dashArray: [5, 5], // Dashed lines
                         );
                       },
                     ),
+                    borderData: FlBorderData(show: false),
+                    barGroups: _buildBarGroups(),
                   ),
-                  titlesData: FlTitlesData(
-                    show: true,
-                    bottomTitles: AxisTitles(
-                      sideTitles: SideTitles(
-                        showTitles: true,
-                        getTitlesWidget: (value, meta) {
-                          return Padding(
-                            padding: const EdgeInsets.only(top: 8.0),
-                            child: Text(
-                              _getDayLabel(value.toInt()),
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.grey.shade400,
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                    leftTitles: AxisTitles(
-                      sideTitles: SideTitles(
-                        showTitles: true,
-                        reservedSize: 30,
-                        getTitlesWidget: (value, meta) {
-                          if (value == 0) return const SizedBox.shrink();
-                          return Text(
-                            value.toInt().toString(),
-                            style: TextStyle(fontSize: 11, color: Colors.grey.shade400),
-                          );
-                        },
-                      ),
-                    ),
-                    topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                    rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                  ),
-                  gridData: FlGridData(
-                    show: true,
-                    drawVerticalLine: false,
-                    horizontalInterval: 5,
-                    getDrawingHorizontalLine: (value) {
-                      return FlLine(
-                        color: Colors.grey.shade100,
-                        strokeWidth: 1,
-                        dashArray: [5, 5], // Dashed lines
-                      );
-                    },
-                  ),
-                  borderData: FlBorderData(show: false),
-                  barGroups: _buildBarGroups(),
                 ),
-              ),
       ),
     );
   }
@@ -360,64 +403,76 @@ class _StatsScreenState extends State<StatsScreen> {
           ),
         ],
       ),
-      child: total == 0
-          ? const Center(
-              child: Padding(
-                padding: EdgeInsets.all(32.0),
-                child: Text(
-                  'Start solving to see accuracy!',
-                  style: TextStyle(fontSize: 14, color: Colors.grey),
+      child:
+          total == 0
+              ? const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(32.0),
+                  child: Text(
+                    'Start solving to see accuracy!',
+                    style: TextStyle(fontSize: 14, color: Colors.grey),
+                  ),
                 ),
-              ),
-            )
-          : Row(
-              children: [
-                Expanded(
-                  flex: 3,
-                  child: SizedBox(
-                    height: 180,
-                    child: PieChart(
-                      PieChartData(
-                        sectionsSpace: 4,
-                        centerSpaceRadius: 40, // Donut style
-                        sections: [
-                          PieChartSectionData(
-                            value: totalCorrect.toDouble(),
-                            title: '${(totalCorrect / total * 100).toStringAsFixed(0)}%',
-                            color: const Color(0xFF10B981), // Modern Emerald Green
-                            radius: 50,
-                            titleStyle: const TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
+              )
+              : Row(
+                children: [
+                  Expanded(
+                    flex: 3,
+                    child: SizedBox(
+                      height: 180,
+                      child: PieChart(
+                        PieChartData(
+                          sectionsSpace: 4,
+                          centerSpaceRadius: 40, // Donut style
+                          sections: [
+                            PieChartSectionData(
+                              value: totalCorrect.toDouble(),
+                              title:
+                                  '${(totalCorrect / total * 100).toStringAsFixed(0)}%',
+                              color: const Color(
+                                0xFF10B981,
+                              ), // Modern Emerald Green
+                              radius: 50,
+                              titleStyle: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
                             ),
-                          ),
-                          PieChartSectionData(
-                            value: totalWrong.toDouble(),
-                            title: '', // Hide label for wrong if small
-                            color: const Color(0xFFEF4444), // Modern Red
-                            radius: 40, // Slightly smaller
-                          ),
-                        ],
+                            PieChartSectionData(
+                              value: totalWrong.toDouble(),
+                              title: '', // Hide label for wrong if small
+                              color: const Color(0xFFEF4444), // Modern Red
+                              radius: 40, // Slightly smaller
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ),
-                ),
-                const SizedBox(width: 24),
-                Expanded(
-                  flex: 2,
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildLegendItem('Correct', const Color(0xFF10B981), totalCorrect),
-                      const SizedBox(height: 16),
-                      _buildLegendItem('Wrong', const Color(0xFFEF4444), totalWrong),
-                    ],
+                  const SizedBox(width: 24),
+                  Expanded(
+                    flex: 2,
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildLegendItem(
+                          'Correct',
+                          const Color(0xFF10B981),
+                          totalCorrect,
+                        ),
+                        const SizedBox(height: 16),
+                        _buildLegendItem(
+                          'Wrong',
+                          const Color(0xFFEF4444),
+                          totalWrong,
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-              ],
-            ),
+                ],
+              ),
     );
   }
 
@@ -425,9 +480,10 @@ class _StatsScreenState extends State<StatsScreen> {
   Widget _buildTotalSummary() {
     final totalSolved = _totalStats['total_solved'] ?? 0;
     final totalCorrect = _totalStats['total_correct'] ?? 0;
-    final accuracy = totalSolved > 0
-        ? (totalCorrect / totalSolved * 100).toStringAsFixed(1)
-        : '0.0';
+    final accuracy =
+        totalSolved > 0
+            ? (totalCorrect / totalSolved * 100).toStringAsFixed(1)
+            : '0.0';
 
     return Row(
       children: [
@@ -461,25 +517,41 @@ class _StatsScreenState extends State<StatsScreen> {
             Container(
               width: 12,
               height: 12,
-              decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(4)),
+              decoration: BoxDecoration(
+                color: color,
+                borderRadius: BorderRadius.circular(4),
+              ),
             ),
             const SizedBox(width: 8),
             Text(
               label,
-              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.grey.shade700),
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: Colors.grey.shade700,
+              ),
             ),
           ],
         ),
         const SizedBox(height: 4),
         Text(
           value.toString(),
-          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black87),
+          style: const TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: Colors.black87,
+          ),
         ),
       ],
     );
   }
 
-  Widget _buildSummaryCard(String label, String value, IconData icon, Color color) {
+  Widget _buildSummaryCard(
+    String label,
+    String value,
+    IconData icon,
+    Color color,
+  ) {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
       decoration: BoxDecoration(
@@ -614,19 +686,18 @@ class _StatsScreenState extends State<StatsScreen> {
     );
   }
 
-/// Top Distractions Today Section
+  /// Top Distractions Today Section
   Widget _buildTopDistractionsSection() {
     return Container(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
 
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16), 
-      
       decoration: BoxDecoration(
         color: _cardColor,
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
             color: Colors.grey.withOpacity(0.05),
-            blurRadius: 16, 
+            blurRadius: 16,
             offset: const Offset(0, 4),
           ),
         ],

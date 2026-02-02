@@ -171,7 +171,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     style: TextStyle(fontSize: 16, color: Colors.black54),
                     textAlign: TextAlign.center,
                   ),
-                  const SizedBox(height: 35),
+                  const SizedBox(height: 40),
 
                   // Full Name Field
                   const Text(
@@ -233,7 +233,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     controller: _emailController,
                     keyboardType: TextInputType.emailAddress,
                     decoration: InputDecoration(
-                      hintText: 'your email',
+                      hintText: 'your.email@example.com',
                       hintStyle: TextStyle(color: Colors.grey[400]),
                       filled: true,
                       fillColor: Colors.grey[50],
@@ -520,7 +520,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     child: OutlinedButton.icon(
                       onPressed: _isLoading ? null : _handleGoogleSignUp,
                       icon: Image.asset(
-                        'assets/images/google-36.png',
+                        'assets/images/logo.png',
                         height: 24,
                         width: 24,
                         errorBuilder: (context, error, stackTrace) {
@@ -543,7 +543,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                       ),
                     ),
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 24),
 
                   // Login Link
                   Row(

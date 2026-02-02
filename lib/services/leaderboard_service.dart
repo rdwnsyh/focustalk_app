@@ -4,7 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class LeaderboardService {
   // Backend API URL - Update this with your laptop's IP address
-  static const String _baseUrl = 'http://192.168.100.150:8000';
+  static const String _baseUrl = 'http://192.168.1.10:8000';
 
   /// Fetch leaderboard data from backend
   Future<List<dynamic>> fetchLeaderboard() async {

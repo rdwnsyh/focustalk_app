@@ -93,6 +93,7 @@ class _UsageListState extends State<UsageList> {
     }
 
     return ListView.builder(
+      padding: EdgeInsets.zero,
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       itemCount: _topApps.length,

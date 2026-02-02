@@ -14,6 +14,83 @@ class DatabaseHelper {
 
   DatabaseHelper._internal();
 
+  /// Master list of default apps to monitor
+  /// This list will be automatically synced to the database
+  static final List<Map<String, dynamic>> defaultApps = [
+    // Social Media Apps
+    {
+      'package_name': 'com.instagram.android',
+      'app_name': 'Instagram',
+      'category': 'SOCIAL',
+      'is_blocked': 0,
+      'is_active': 1,
+    },
+    {
+      'package_name': 'com.facebook.katana',
+      'app_name': 'Facebook',
+      'category': 'SOCIAL',
+      'is_blocked': 0,
+      'is_active': 1,
+    },
+    {
+      'package_name': 'com.twitter.android',
+      'app_name': 'X (Twitter)',
+      'category': 'SOCIAL',
+      'is_blocked': 0,
+      'is_active': 1,
+    },
+    {
+      'package_name': 'com.zhiliaoapp.musically',
+      'app_name': 'TikTok',
+      'category': 'SOCIAL',
+      'is_blocked': 0,
+      'is_active': 1,
+    },
+    {
+      'package_name': 'com.whatsapp',
+      'app_name': 'WhatsApp',
+      'category': 'SOCIAL',
+      'is_blocked': 0,
+      'is_active': 1,
+    },
+    {
+      'package_name': 'com.google.android.youtube',
+      'app_name': 'YouTube',
+      'category': 'SOCIAL',
+      'is_blocked': 0,
+      'is_active': 1,
+    },
+    // Game Apps
+    {
+      'package_name': 'com.mobile.legends',
+      'app_name': 'Mobile Legends',
+      'category': 'GAME',
+      'is_blocked': 0,
+      'is_active': 1,
+    },
+    {
+      'package_name': 'com.tencent.ig',
+      'app_name': 'PUBG Mobile',
+      'category': 'GAME',
+      'is_blocked': 0,
+      'is_active': 1,
+    },
+    {
+      'package_name': 'com.dts.freefireth',
+      'app_name': 'Free Fire',
+      'category': 'GAME',
+      'is_blocked': 0,
+      'is_active': 1,
+    },
+    {
+      'package_name': 'com.roblox.client',
+      'app_name': 'Roblox',
+      'category': 'GAME',
+      'is_blocked': 0,
+      'is_active': 1,
+    },
+  ];
+
   /// Get database instance
   Future<Database> get database async {
     if (_database != null) return _database!;
@@ -136,11 +213,76 @@ class DatabaseHelper {
 
   /// Seed database with apps and questions
   Future<void> seedDatabase() async {
-    await _seedApps();
+    await seedDefaultApps(); // Use the new sync method
     await _seedQuestions();
   }
 
-  /// Seed dummy apps for testing
+  /// Sync/Seed default apps into database
+  /// This method intelligently inserts missing apps and updates categories
+  Future<void> seedDefaultApps() async {
+    final db = await database;
+    int insertedCount = 0;
+    int updatedCount = 0;
+    int skippedCount = 0;
+
+    print('🔄 Starting app sync process...');
+    print('📋 Total apps in master list: ${defaultApps.length}');
+
+    for (var app in defaultApps) {
+      final packageName = app['package_name'];
+
+      // Check if app already exists in database
+      final existing = await db.query(
+        'app_dictionary',
+        where: 'package_name = ?',
+        whereArgs: [packageName],
+      );
+
+      if (existing.isEmpty) {
+        // App does NOT exist - insert it
+        await db.insert('app_dictionary', {
+          'package_name': app['package_name'],
+          'category': app['category'],
+          'is_blocked': app['is_blocked'] ?? 0,
+          'is_active': app['is_active'] ?? 1,
+        }, conflictAlgorithm: ConflictAlgorithm.ignore);
+        print('  ✅ Inserted: ${app['app_name']} (${app['package_name']})');
+        insertedCount++;
+      } else {
+        // App exists - check if category needs to be updated
+        final existingCategory = existing.first['category'] as String;
+        final newCategory = app['category'] as String;
+
+        if (existingCategory != newCategory) {
+          // Update category only (preserve is_blocked and is_active)
+          await db.update(
+            'app_dictionary',
+            {'category': newCategory},
+            where: 'package_name = ?',
+            whereArgs: [packageName],
+          );
+          print(
+            '  🔄 Updated: ${app['app_name']} ($existingCategory → $newCategory)',
+          );
+          updatedCount++;
+        } else {
+          print('  ⏭️  Skipped: ${app['app_name']} (already up-to-date)');
+          skippedCount++;
+        }
+      }
+    }
+
+    print('═══════════════════════════════════════════════════════');
+    print('✅ App sync completed!');
+    print('   📥 Inserted: $insertedCount new apps');
+    print('   🔄 Updated: $updatedCount apps');
+    print('   ⏭️  Skipped: $skippedCount existing apps');
+    print('   📊 Total: ${defaultApps.length} apps in master list');
+    print('═══════════════════════════════════════════════════════');
+  }
+
+  /// Seed dummy apps for testing (DEPRECATED - use seedDefaultApps instead)
+  @Deprecated('Use seedDefaultApps() instead')
   Future<void> _seedApps() async {
     final db = await database;
 
@@ -308,7 +450,7 @@ class DatabaseHelper {
   /// Get a random unsolved question (prioritize unsolved, fall back to any)
   Future<Map<String, dynamic>?> getRandomQuestion() async {
     final db = await database;
-    
+
     // First, try to fetch an unsolved question
     var results = await db.query(
       'questions',
@@ -321,12 +463,52 @@ class DatabaseHelper {
     if (results.isEmpty) {
       print('⚠️ All questions solved! Resetting is_solved flag...');
       await db.rawUpdate('UPDATE questions SET is_solved = 0');
-      
+
+      results = await db.query('questions', orderBy: 'RANDOM()', limit: 1);
+    }
+
+    if (results.isNotEmpty) {
+      return results.first;
+    }
+    return null;
+  }
+
+  /// Get a random question EXCLUDING a specific question ID (No Duplicate Logic)
+  /// This ensures the same question doesn't appear twice in a row
+  Future<Map<String, dynamic>?> getRandomQuestionExcluding(
+    int excludeId,
+  ) async {
+    final db = await database;
+
+    // First, try to fetch an unsolved question (excluding the current one)
+    var results = await db.query(
+      'questions',
+      where: 'is_solved = 0 AND id != ?',
+      whereArgs: [excludeId],
+      orderBy: 'RANDOM()',
+      limit: 1,
+    );
+
+    // If no unsolved questions (excluding current), reset all and try again
+    if (results.isEmpty) {
+      print('⚠️ No other unsolved questions! Checking all questions...');
+
+      // Try to get any question except the excluded one
       results = await db.query(
         'questions',
+        where: 'id != ?',
+        whereArgs: [excludeId],
         orderBy: 'RANDOM()',
         limit: 1,
       );
+
+      // If still empty, it means there's only 1 question in the database
+      if (results.isEmpty) {
+        print('⚠️ Only 1 question in database! Resetting and returning same.');
+        await db.rawUpdate('UPDATE questions SET is_solved = 0');
+        // Return the only question available
+        results = await db.query('questions', orderBy: 'RANDOM()', limit: 1);
+      }
     }
 
     if (results.isNotEmpty) {
@@ -348,10 +530,9 @@ class DatabaseHelper {
   /// This sets is_solved = 1 so it won't be fetched until reset
   Future<void> markQuestionAsSolved(int questionId) async {
     final db = await database;
-    await db.rawUpdate(
-      'UPDATE questions SET is_solved = 1 WHERE id = ?',
-      [questionId],
-    );
+    await db.rawUpdate('UPDATE questions SET is_solved = 1 WHERE id = ?', [
+      questionId,
+    ]);
     print('✅ Question $questionId marked as solved');
   }
 
