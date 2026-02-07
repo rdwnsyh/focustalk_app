@@ -11,6 +11,8 @@ import 'package:focustalk_app/screens/practice_quiz_screen.dart';
 import 'package:app_usage/app_usage.dart';
 import 'package:installed_apps/installed_apps.dart';
 import 'package:installed_apps/app_info.dart';
+import 'package:focustalk_app/screens/material_screen.dart';
+import 'package:get/get.dart';
 
 // Model to hold app usage data with icon
 class AppUsageWithIcon {
@@ -666,6 +668,11 @@ class _HomeScreenState extends State<HomeScreen>
 
               // SECTION C: Protection Toggle
               _buildProtectionStatusCard(),
+
+              const SizedBox(height: 20),
+
+              // SECTION C2: Material Access
+              _buildMaterialAccessCard(),
 
               const SizedBox(height: 20),
 
@@ -1514,6 +1521,90 @@ class _HomeScreenState extends State<HomeScreen>
                     ),
                   ],
                 ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// SECTION C2: Material Access Card
+  Widget _buildMaterialAccessCard() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: GestureDetector(
+        onTap: () {
+          print('🎓 Navigating to MaterialView (via Home action)...');
+          Get.to(
+            () => const MaterialView(),
+            transition: Transition.rightToLeft,
+            duration: const Duration(milliseconds: 300),
+          );
+        },
+        child: Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [Color(0xFF667EEA), Color(0xFF764BA2)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF667EEA).withOpacity(0.3),
+                blurRadius: 20,
+                offset: const Offset(0, 8),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              // Icon Container
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: const Icon(
+                  Icons.school,
+                  color: Colors.white,
+                  size: 28,
+                ),
+              ),
+              const SizedBox(width: 16),
+              // Text Content
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Study Materials',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Learn English topics',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Colors.white.withOpacity(0.9),
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              // Arrow Icon
+              const Icon(
+                Icons.arrow_forward_ios,
+                color: Colors.white,
+                size: 18,
               ),
             ],
           ),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:flutter_overlay_window/flutter_overlay_window.dart';
 import 'package:focustalk_app/screens/home_screen.dart';
 import 'package:focustalk_app/screens/permission_screen.dart';
@@ -122,7 +123,7 @@ class _FocusTalkAppState extends State<FocusTalkApp> {
   Widget build(BuildContext context) {
     if (_isLoading) {
       // Show splash screen while checking auth
-      return MaterialApp(
+      return GetMaterialApp(
         debugShowCheckedModeBanner: false,
         home: Scaffold(
           body: Container(
@@ -159,7 +160,7 @@ class _FocusTalkAppState extends State<FocusTalkApp> {
       );
     }
 
-    return MaterialApp(
+    return GetMaterialApp(
       title: 'FocusTalk',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
@@ -188,3 +189,5 @@ class _FocusTalkAppState extends State<FocusTalkApp> {
     }
   }
 }
+ 
+

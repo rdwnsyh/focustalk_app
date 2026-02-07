@@ -1,7 +1,10 @@
+import 'dart:io';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:focustalk_app/services/leaderboard_service.dart';
+import 'package:flutter/services.dart' show rootBundle;
+import 'package:csv/csv.dart';
 
 class DatabaseHelper {
   // Singleton pattern
@@ -123,12 +126,11 @@ class DatabaseHelper {
         CREATE TABLE questions (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           question TEXT NOT NULL,
-          correct_answer TEXT NOT NULL,
           option_a TEXT NOT NULL,
           option_b TEXT NOT NULL,
-          option_c TEXT,
-          option_d TEXT,
-          shown_count INTEGER DEFAULT 0
+          option_c TEXT NOT NULL,
+          option_d TEXT NOT NULL,
+          correct_answer TEXT NOT NULL
         )
       ''');
     }
@@ -214,7 +216,14 @@ class DatabaseHelper {
   /// Seed database with apps and questions
   Future<void> seedDatabase() async {
     await seedDefaultApps(); // Use the new sync method
-    await _seedQuestions();
+
+    // Try to import questions from CSV asset; fall back to in-code seed if CSV missing
+    try {
+      await importQuestionsFromCSV();
+    } catch (e) {
+      print('⚠️ CSV import failed, falling back to built-in seeding: $e');
+      await _seedQuestions();
+    }
   }
 
   /// Sync/Seed default apps into database
@@ -917,6 +926,72 @@ class DatabaseHelper {
       print(
         '🛡️ Intervention: Blocked distraction #${(current['interventions_count'] as int? ?? 0) + 1}',
       );
+    }
+  }
+
+  // --- FITUR 1: IMPORT CSV KE SQLITE ---
+  Future<void> importQuestionsFromCSV() async {
+    final db = await database;
+
+    // Cek apakah data sudah ada? Jika sudah, jangan import lagi
+    var count = Sqflite.firstIntValue(
+        await db.rawQuery('SELECT COUNT(*) FROM questions'));
+
+    if (count != null && count > 0) {
+      print("✅ Database sudah berisi soal. Skip seeding from CSV.");
+      return;
+    }
+
+    print("🔄 Memulai import data dari CSV...");
+
+    try {
+      // Baca file dari assets
+      final csvData = await rootBundle.loadString('assets/data/english_questions.csv');
+
+      // Convert CSV ke List
+      List<List<dynamic>> rows = const CsvToListConverter().convert(
+        csvData,
+        eol: '\n', // Pastikan pemisah baris sesuai format file
+        fieldDelimiter: ',', // Pastikan pemisah kolom adalah koma
+      );
+
+      if (rows.isEmpty) {
+        print('⚠️ CSV file is empty');
+        return;
+      }
+
+      // Mulai Batch Insert (Supaya cepat)
+      Batch batch = db.batch();
+
+      // Detect header row by checking first cell for the word 'question'
+      final hasHeader = rows.first.isNotEmpty && rows.first[0].toString().toLowerCase().contains('question');
+      final startIndex = hasHeader ? 1 : 0;
+
+      int inserted = 0;
+      // Loop baris CSV
+      for (var i = startIndex; i < rows.length; i++) {
+        var row = rows[i];
+
+        // Pastikan baris memiliki data lengkap (minimal 6 kolom)
+        if (row.length >= 6) {
+          batch.insert('questions', {
+            'question': row[0].toString(),
+            'option_a': row[1].toString(),
+            'option_b': row[2].toString(),
+            'option_c': row[3].toString(),
+            'option_d': row[4].toString(),
+            'correct_answer': row[5].toString(),
+          });
+          inserted++;
+        }
+      }
+
+      await batch.commit(noResult: true);
+      print("✅ Berhasil mengimport $inserted soal ke Database!");
+
+    } catch (e) {
+      print("❌ Error saat import CSV: $e");
+      rethrow;
     }
   }
 
