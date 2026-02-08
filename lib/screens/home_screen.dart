@@ -96,10 +96,11 @@ class _HomeScreenState extends State<HomeScreen>
       final solved = prefs.getInt('solved_today') ?? 0;
       final goal = prefs.getInt('daily_goal') ?? 5;
 
-      // Get focus time in minutes from SharedPreferences or database
-      final focusMinutes = prefs.getInt('focus_time_today') ?? 0;
-      final hours = focusMinutes ~/ 60;
-      final minutes = focusMinutes % 60;
+      // Get focus time in seconds from SharedPreferences
+      final focusSeconds = prefs.getInt('focus_time_today') ?? 0;
+      final totalMinutes = (focusSeconds / 60).floor();
+      final hours = totalMinutes ~/ 60;
+      final minutes = totalMinutes % 60;
       final focusTimeStr = '${hours}h ${minutes}m';
 
       // Get apps count for stats card

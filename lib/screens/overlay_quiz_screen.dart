@@ -13,6 +13,7 @@ class OverlayQuizScreen extends StatefulWidget {
 }
 
 class _OverlayQuizScreenState extends State<OverlayQuizScreen> {
+  final Stopwatch _focusTimer = Stopwatch();
   bool _isLoading = true;
   bool _isAnswered = false;
   Map<String, dynamic>? _questionData;
@@ -23,7 +24,14 @@ class _OverlayQuizScreenState extends State<OverlayQuizScreen> {
   @override
   void initState() {
     super.initState();
+    _startFocusTimer();
     _loadQuestion();
+  }
+
+  @override
+  void dispose() {
+    _stopAndSaveFocusTime();
+    super.dispose();
   }
 
   Future<void> _loadQuestion() async {
@@ -103,13 +111,13 @@ class _OverlayQuizScreenState extends State<OverlayQuizScreen> {
 
       if (goalMet) {
         print('🎉 Daily goal achieved! Closing overlay - you are free today!');
-        FlutterOverlayWindow.closeOverlay();
+        await _closeOverlayWithFocusSave();
       } else {
         print('✅ Correct answer! Granting 25 seconds access...');
         // Grant 25 seconds of temporary access
         await _grantRewardTime();
         // Close overlay - user can use app for 25 seconds
-        FlutterOverlayWindow.closeOverlay();
+        await _closeOverlayWithFocusSave();
       }
     } else {
       // Wrong answer - show feedback and reset selection
@@ -129,6 +137,44 @@ class _OverlayQuizScreenState extends State<OverlayQuizScreen> {
         });
       }
     }
+  }
+
+  void _startFocusTimer() {
+    if (!_focusTimer.isRunning) {
+      _focusTimer.start();
+    }
+  }
+
+  Future<void> _stopAndSaveFocusTime() async {
+    if (!_focusTimer.isRunning) {
+      return;
+    }
+
+    _focusTimer.stop();
+    final elapsedSeconds = _focusTimer.elapsed.inSeconds;
+    _focusTimer.reset();
+
+    if (elapsedSeconds <= 0) {
+      return;
+    }
+
+    final prefs = await SharedPreferences.getInstance();
+    final now = DateTime.now();
+    final todayKey = '${now.year}-${now.month}-${now.day}';
+    final lastDate = prefs.getString('focus_time_date');
+
+    if (lastDate != todayKey) {
+      await prefs.setInt('focus_time_today', 0);
+      await prefs.setString('focus_time_date', todayKey);
+    }
+
+    final current = prefs.getInt('focus_time_today') ?? 0;
+    await prefs.setInt('focus_time_today', current + elapsedSeconds);
+  }
+
+  Future<void> _closeOverlayWithFocusSave() async {
+    await _stopAndSaveFocusTime();
+    FlutterOverlayWindow.closeOverlay();
   }
 
   /// Load a NEW random question from database

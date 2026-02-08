@@ -1,5 +1,11 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
+import 'package:open_file/open_file.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class MaterialModel {
   final int id;
@@ -7,6 +13,7 @@ class MaterialModel {
   final String title;
   final String duration;
   final String level;
+  final String fileName;
   final IconData icon;
   final Color themeColor;
   final RxBool isDownloading;
@@ -18,6 +25,7 @@ class MaterialModel {
     required this.title,
     required this.duration,
     required this.level,
+    required this.fileName,
     required this.icon,
     required this.themeColor,
     bool isDownloading = false,
@@ -27,6 +35,7 @@ class MaterialModel {
 }
 
 class MaterialController extends GetxController {
+  final Stopwatch _focusTimer = Stopwatch();
   final List<MaterialModel> allMaterials = <MaterialModel>[
     MaterialModel(
       id: 1,
@@ -34,6 +43,7 @@ class MaterialController extends GetxController {
       title: 'Simple Present Tense',
       duration: '15 Mins',
       level: 'Beginner',
+      fileName: 'simple_present_tense.pdf',
       icon: Icons.access_time_filled,
       themeColor: Colors.blue,
     ),
@@ -43,6 +53,7 @@ class MaterialController extends GetxController {
       title: 'Business Vocabulary',
       duration: '20 Mins',
       level: 'Intermediate',
+      fileName: 'business_vocabulary.pdf',
       icon: Icons.work_rounded,
       themeColor: Colors.teal,
     ),
@@ -52,15 +63,17 @@ class MaterialController extends GetxController {
       title: 'TOEFL Listening',
       duration: '25 Mins',
       level: 'Advanced',
+      fileName: 'toefl_listening.pdf',
       icon: Icons.headphones_rounded,
       themeColor: Colors.deepPurple,
     ),
     MaterialModel(
       id: 4,
-      category: 'PRONUNCIATION',
-      title: 'Minimal Pairs Drill',
+      category: 'SPEAKING',
+      title: 'Pronunciation Drills',
       duration: '10 Mins',
       level: 'Beginner',
+      fileName: 'pronunciation_drills.pdf',
       icon: Icons.record_voice_over_rounded,
       themeColor: Colors.orange,
     ),
@@ -70,6 +83,7 @@ class MaterialController extends GetxController {
       title: 'Email Writing Basics',
       duration: '18 Mins',
       level: 'Intermediate',
+      fileName: 'email_writing.pdf',
       icon: Icons.edit_rounded,
       themeColor: Colors.redAccent,
     ),
@@ -81,6 +95,12 @@ class MaterialController extends GetxController {
   void onInit() {
     super.onInit();
     filteredMaterials.assignAll(allMaterials);
+  }
+
+  @override
+  void onClose() {
+    _stopAndSaveFocusTime();
+    super.onClose();
   }
 
   void filterMaterials(String query) {
@@ -99,24 +119,124 @@ class MaterialController extends GetxController {
     filteredMaterials.assignAll(results);
   }
 
-  Future<void> downloadFile(MaterialModel material) async {
-    if (material.isDownloading.value || material.isDownloaded.value) {
+  Future<String> _getLocalFilePath(String fileName) async {
+    final dir = await getApplicationDocumentsDirectory();
+    return '${dir.path}/$fileName';
+  }
+
+  Future<void> openMaterial(MaterialModel item) async {
+    try {
+      _startFocusTimer();
+      final filePath = await _getLocalFilePath(item.fileName);
+      final file = File(filePath);
+      if (!await file.exists()) {
+        Get.snackbar(
+          'File not found',
+          'Please download the file first.',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.black87,
+          colorText: Colors.white,
+          margin: const EdgeInsets.all(16),
+          borderRadius: 12,
+        );
+        return;
+      }
+
+      await OpenFile.open(filePath);
+    } catch (e) {
+      Get.snackbar(
+        'Error',
+        'Failed to open file.',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.black87,
+        colorText: Colors.white,
+        margin: const EdgeInsets.all(16),
+        borderRadius: 12,
+      );
+    }
+  }
+
+  Future<void> downloadMaterial(MaterialModel item) async {
+    if (item.isDownloading.value) {
       return;
     }
 
-    material.isDownloading.value = true;
-    await Future.delayed(const Duration(seconds: 2));
-    material.isDownloading.value = false;
-    material.isDownloaded.value = true;
+    if (item.isDownloaded.value) {
+      await openMaterial(item);
+      return;
+    }
 
-    Get.snackbar(
-      'Download Complete',
-      'File saved to /Downloads',
-      snackPosition: SnackPosition.BOTTOM,
-      backgroundColor: Colors.black87,
-      colorText: Colors.white,
-      margin: const EdgeInsets.all(16),
-      borderRadius: 12,
-    );
+    item.isDownloading.value = true;
+
+    try {
+      await Future.delayed(const Duration(seconds: 2));
+
+      final data = await rootBundle.load('assets/materials/${item.fileName}');
+      final bytes = data.buffer.asUint8List();
+
+      final filePath = await _getLocalFilePath(item.fileName);
+      final file = File(filePath);
+      await file.writeAsBytes(bytes, flush: true);
+
+      item.isDownloaded.value = true;
+
+      Get.snackbar(
+        'Success',
+        'File saved! Opening...',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.black87,
+        colorText: Colors.white,
+        margin: const EdgeInsets.all(16),
+        borderRadius: 12,
+      );
+
+      _startFocusTimer();
+      await OpenFile.open(filePath);
+    } catch (e) {
+      Get.snackbar(
+        'Error',
+        'Failed to download file.',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.black87,
+        colorText: Colors.white,
+        margin: const EdgeInsets.all(16),
+        borderRadius: 12,
+      );
+    } finally {
+      item.isDownloading.value = false;
+    }
+  }
+
+  void _startFocusTimer() {
+    if (!_focusTimer.isRunning) {
+      _focusTimer.start();
+    }
+  }
+
+  Future<void> _stopAndSaveFocusTime() async {
+    if (!_focusTimer.isRunning) {
+      return;
+    }
+
+    _focusTimer.stop();
+    final elapsedSeconds = _focusTimer.elapsed.inSeconds;
+    _focusTimer.reset();
+
+    if (elapsedSeconds <= 0) {
+      return;
+    }
+
+    final prefs = await SharedPreferences.getInstance();
+    final now = DateTime.now();
+    final todayKey = '${now.year}-${now.month}-${now.day}';
+    final lastDate = prefs.getString('focus_time_date');
+
+    if (lastDate != todayKey) {
+      await prefs.setInt('focus_time_today', 0);
+      await prefs.setString('focus_time_date', todayKey);
+    }
+
+    final current = prefs.getInt('focus_time_today') ?? 0;
+    await prefs.setInt('focus_time_today', current + elapsedSeconds);
   }
 }

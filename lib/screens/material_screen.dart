@@ -212,22 +212,26 @@ class MaterialView extends StatelessWidget {
             Obx(() {
               if (item.isDownloading.value) {
                 return const SizedBox(
-                  width: 24,
-                  height: 24,
+                  width: 20,
+                  height: 20,
                   child: CircularProgressIndicator(strokeWidth: 2),
                 );
               }
 
               if (item.isDownloaded.value) {
-                return const Icon(
-                  Icons.check_circle,
-                  color: Colors.green,
-                  size: 24,
+                return InkWell(
+                  onTap: () => controller.openMaterial(item),
+                  borderRadius: BorderRadius.circular(20),
+                  child: const Icon(
+                    Icons.check_circle,
+                    color: Colors.green,
+                    size: 24,
+                  ),
                 );
               }
 
               return InkWell(
-                onTap: () => controller.downloadFile(item),
+                onTap: () => controller.downloadMaterial(item),
                 borderRadius: BorderRadius.circular(20),
                 child: Container(
                   width: 36,
