@@ -44,16 +44,14 @@ class ApiService {
         throw Exception('No auth token found. Please login again.');
       }
 
-      // Create multipart request
-      final uri = Uri.parse('$_baseUrl/users/me');
+      // Create URI with token as query parameter
+      final uri = Uri.parse('$_baseUrl/users/me?token=$token');
       final request = http.MultipartRequest('PUT', uri);
-
-      // Add authorization header
-      request.headers['Authorization'] = 'Bearer $token';
 
       // Add form fields
       request.fields['name'] = name;
       request.fields['email'] = email;
+      request.fields['token'] = token;
 
       // Add password field only if provided
       if (password != null && password.isNotEmpty) {

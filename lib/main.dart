@@ -14,19 +14,44 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 @pragma("vm:entry-point")
 void overlayMain() async {
+  print('═══════════════════════════════════════════════════════');
+  print('🟢 OVERLAY ISOLATE: Entry point called');
+  print('═══════════════════════════════════════════════════════');
+
   WidgetsFlutterBinding.ensureInitialized();
+  print('🟢 OVERLAY ISOLATE: Flutter bindings initialized');
 
-  // Seed database in overlay isolate (runs separately from main app)
-  print('🎯 Overlay isolate starting - seeding database...');
-  await DatabaseHelper().seedDatabase();
-  print('✅ Database seeded in overlay isolate');
+  // CRITICAL: Initialize database connection in THIS isolate
+  // The overlay runs in a SEPARATE isolate from the main app
+  // so we MUST open the database connection here
+  print('🟢 OVERLAY ISOLATE: Opening database connection...');
+  try {
+    final db = await DatabaseHelper().database;
+    print('🟢 OVERLAY ISOLATE: Database connected successfully');
+    print('🟢 OVERLAY ISOLATE: Database path: ${db.path}');
 
+    // Verify questions exist
+    final count = await db.rawQuery('SELECT COUNT(*) as count FROM questions');
+    final totalQuestions = count.first['count'];
+    print('🟢 OVERLAY ISOLATE: Found $totalQuestions questions in database');
+
+    if (totalQuestions == 0) {
+      print('⚠️ OVERLAY ISOLATE: No questions found, seeding database...');
+      await DatabaseHelper().seedDatabase();
+      print('✅ OVERLAY ISOLATE: Database seeded');
+    }
+  } catch (e) {
+    print('❌ OVERLAY ISOLATE: Database initialization failed: $e');
+  }
+
+  print('🟢 OVERLAY ISOLATE: Launching overlay UI...');
   runApp(
-    const MaterialApp(
+    GetMaterialApp(
       debugShowCheckedModeBanner: false,
-      home: Material(child: OverlayQuizScreen()),
+      home: const Material(child: OverlayQuizScreen()),
     ),
   );
+  print('🟢 OVERLAY ISOLATE: UI launched');
 }
 
 Future<Map<String, bool>> checkStartupFlow() async {
@@ -189,5 +214,3 @@ class _FocusTalkAppState extends State<FocusTalkApp> {
     }
   }
 }
- 
-

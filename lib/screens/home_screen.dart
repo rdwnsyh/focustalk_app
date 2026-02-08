@@ -41,6 +41,7 @@ class _HomeScreenState extends State<HomeScreen>
   int _dailyGoal = 5;
   String _focusTime = '0h 0m';
   String _username = 'User'; // Dynamic username
+  String? _userPhoto; // Profile photo URL
   Timer? _refreshTimer;
   late AnimationController _animationController;
 
@@ -108,6 +109,7 @@ class _HomeScreenState extends State<HomeScreen>
 
       // Get username from SharedPreferences
       final userName = prefs.getString('user_name') ?? 'User';
+      final userPhoto = prefs.getString('user_photo');
 
       if (mounted) {
         setState(() {
@@ -116,6 +118,7 @@ class _HomeScreenState extends State<HomeScreen>
           _monitoredAppsCount = appsCount;
           _focusTime = focusTimeStr;
           _username = userName;
+          _userPhoto = userPhoto;
         });
 
         // Automatically claim streak when daily goal is met
@@ -779,11 +782,18 @@ class _HomeScreenState extends State<HomeScreen>
                   child: CircleAvatar(
                     radius: 24,
                     backgroundColor: Colors.white.withOpacity(0.2),
-                    child: const Icon(
-                      Icons.person_rounded,
-                      color: Colors.white,
-                      size: 28,
-                    ),
+                    backgroundImage:
+                        _userPhoto != null && _userPhoto!.isNotEmpty
+                            ? NetworkImage(_userPhoto!)
+                            : null,
+                    child:
+                        _userPhoto == null || _userPhoto!.isEmpty
+                            ? const Icon(
+                              Icons.person_rounded,
+                              color: Colors.white,
+                              size: 28,
+                            )
+                            : null,
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -1568,11 +1578,7 @@ class _HomeScreenState extends State<HomeScreen>
                   color: Colors.white.withOpacity(0.2),
                   borderRadius: BorderRadius.circular(14),
                 ),
-                child: const Icon(
-                  Icons.school,
-                  color: Colors.white,
-                  size: 28,
-                ),
+                child: const Icon(Icons.school, color: Colors.white, size: 28),
               ),
               const SizedBox(width: 16),
               // Text Content

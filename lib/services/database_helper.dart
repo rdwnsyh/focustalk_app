@@ -111,7 +111,7 @@ class DatabaseHelper {
 
     return await openDatabase(
       path,
-      version: 6,
+      version: 9,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
@@ -170,6 +170,47 @@ class DatabaseHelper {
         'ALTER TABLE questions ADD COLUMN is_solved INTEGER DEFAULT 0',
       );
       print('✅ Migration: Added is_solved column to questions table');
+    }
+
+    if (oldVersion < 7) {
+      // Force re-import questions from CSV with fresh dataset
+      print(
+        '🔄 Migration v7: Clearing old questions and re-importing from CSV...',
+      );
+
+      // Delete all existing questions
+      await db.delete('questions');
+      print('🗑️ Cleared all old questions');
+
+      // Re-import from CSV
+      await _importQuestionsFromCSVDirect(db);
+      print('✅ Migration: Questions re-imported from CSV');
+    }
+
+    if (oldVersion < 8) {
+      // Load new General English questions from questions.csv
+      print('🔄 Migration v8: Loading new General English quiz dataset...');
+
+      // Clear old questions
+      await db.delete('questions');
+      print('🗑️ Cleared all old questions');
+
+      // Import new questions from questions.csv (100 General English questions)
+      await _importQuestionsFromCSVDirect(db);
+      print('✅ Migration v8: 100 General English questions imported!');
+    }
+
+    if (oldVersion < 9) {
+      // Fix CSV column mapping bug (was reading ID as question)
+      print('🔧 Migration v9: Fixing CSV column mapping bug...');
+
+      // Clear incorrect data
+      await db.delete('questions');
+      print('🗑️ Cleared questions with wrong mapping');
+
+      // Re-import with correct column mapping (skip id column)
+      await _importQuestionsFromCSVDirect(db);
+      print('✅ Migration v9: Questions imported with correct mapping!');
     }
   }
 
@@ -535,14 +576,115 @@ class DatabaseHelper {
     return Sqflite.firstIntValue(result) ?? 0;
   }
 
+  /// Get a random unsolved question from the database
+  /// Returns null if all questions are solved (will auto-reset and return a question)
+  Future<Map<String, dynamic>?> getRandomUnsolvedQuestion() async {
+    final db = await database;
+
+    // DEBUG: Check total and unsolved count
+    final totalCount = Sqflite.firstIntValue(
+      await db.rawQuery('SELECT COUNT(*) FROM questions'),
+    );
+    final unsolvedCount = Sqflite.firstIntValue(
+      await db.rawQuery('SELECT COUNT(*) FROM questions WHERE is_solved = 0'),
+    );
+    print('📊 Questions stats: Total=$totalCount, Unsolved=$unsolvedCount');
+
+    // STEP 1: Get random unsolved question
+    final result = await db.rawQuery(
+      'SELECT * FROM questions WHERE is_solved = 0 ORDER BY RANDOM() LIMIT 1',
+    );
+
+    if (result.isNotEmpty) {
+      final questionId = result.first['id'];
+      final questionText = result.first['question'].toString();
+      // Safe truncation - avoid substring errors
+      String preview;
+      try {
+        if (questionText.length <= 50) {
+          preview = questionText;
+        } else {
+          preview = '${questionText.substring(0, 50)}...';
+        }
+      } catch (e) {
+        preview = questionText; // Fallback to full text on any error
+      }
+      print('✅ Found unsolved question: ID $questionId');
+      print('   Question: "$preview"');
+      return result.first;
+    }
+
+    // STEP 2: If all questions solved, reset and try again
+    print('🔄 All questions solved! Resetting all questions...');
+    await resetAllQuestions();
+
+    // STEP 3: Get a random question after reset
+    final resultAfterReset = await db.rawQuery(
+      'SELECT * FROM questions ORDER BY RANDOM() LIMIT 1',
+    );
+
+    if (resultAfterReset.isNotEmpty) {
+      print(
+        '✅ After reset, selected question: ID ${resultAfterReset.first['id']}',
+      );
+      return resultAfterReset.first;
+    }
+
+    // STEP 4: No questions in database at all
+    print('❌ No questions available in database');
+    return null;
+  }
+
   /// Mark question as solved
   /// This sets is_solved = 1 so it won't be fetched until reset
   Future<void> markQuestionAsSolved(int questionId) async {
     final db = await database;
-    await db.rawUpdate('UPDATE questions SET is_solved = 1 WHERE id = ?', [
-      questionId,
-    ]);
-    print('✅ Question $questionId marked as solved');
+
+    print('⏳ Marking question $questionId as solved...');
+
+    // Execute the update
+    final updateCount = await db.rawUpdate(
+      'UPDATE questions SET is_solved = 1 WHERE id = ?',
+      [questionId],
+    );
+
+    // Verify the update
+    if (updateCount > 0) {
+      // Double-check by querying the question
+      final verify = await db.rawQuery(
+        'SELECT is_solved FROM questions WHERE id = ?',
+        [questionId],
+      );
+
+      if (verify.isNotEmpty && verify.first['is_solved'] == 1) {
+        print('✅ Question $questionId marked as solved (VERIFIED)');
+      } else {
+        print('⚠️ Question $questionId marked but verification failed!');
+      }
+    } else {
+      print(
+        '❌ Failed to mark question $questionId (update count: $updateCount)',
+      );
+    }
+  }
+
+  /// Check if a question is already solved
+  /// Returns true if the question has is_solved = 1
+  Future<bool> isQuestionSolved(int questionId) async {
+    final db = await database;
+
+    final result = await db.rawQuery(
+      'SELECT COUNT(*) as count FROM questions WHERE id = ? AND is_solved = 1',
+      [questionId],
+    );
+
+    final count = Sqflite.firstIntValue(result) ?? 0;
+    final isSolved = count > 0;
+
+    print(
+      '🔍 Checking question $questionId: ${isSolved ? "SOLVED" : "UNSOLVED"}',
+    );
+    return isSolved;
   }
 
   /// Reset all questions (set is_solved = 0)
@@ -935,18 +1077,24 @@ class DatabaseHelper {
 
     // Cek apakah data sudah ada? Jika sudah, jangan import lagi
     var count = Sqflite.firstIntValue(
-        await db.rawQuery('SELECT COUNT(*) FROM questions'));
+      await db.rawQuery('SELECT COUNT(*) FROM questions'),
+    );
 
     if (count != null && count > 0) {
       print("✅ Database sudah berisi soal. Skip seeding from CSV.");
       return;
     }
 
+    await _importQuestionsFromCSVDirect(db);
+  }
+
+  /// Direct import method used by both initial seed and migrations
+  Future<void> _importQuestionsFromCSVDirect(Database db) async {
     print("🔄 Memulai import data dari CSV...");
 
     try {
       // Baca file dari assets
-      final csvData = await rootBundle.loadString('assets/data/english_questions.csv');
+      final csvData = await rootBundle.loadString('assets/data/questions.csv');
 
       // Convert CSV ke List
       List<List<dynamic>> rows = const CsvToListConverter().convert(
@@ -963,8 +1111,12 @@ class DatabaseHelper {
       // Mulai Batch Insert (Supaya cepat)
       Batch batch = db.batch();
 
-      // Detect header row by checking first cell for the word 'question'
-      final hasHeader = rows.first.isNotEmpty && rows.first[0].toString().toLowerCase().contains('question');
+      // Detect header row by checking first cell for 'id' or second cell for 'question'
+      final hasHeader =
+          rows.first.isNotEmpty &&
+          (rows.first[0].toString().toLowerCase().contains('id') ||
+              (rows.first.length > 1 &&
+                  rows.first[1].toString().toLowerCase().contains('question')));
       final startIndex = hasHeader ? 1 : 0;
 
       int inserted = 0;
@@ -972,15 +1124,16 @@ class DatabaseHelper {
       for (var i = startIndex; i < rows.length; i++) {
         var row = rows[i];
 
-        // Pastikan baris memiliki data lengkap (minimal 6 kolom)
-        if (row.length >= 6) {
+        // Pastikan baris memiliki data lengkap (minimal 7 kolom: id + 6 data kolom)
+        if (row.length >= 7) {
           batch.insert('questions', {
-            'question': row[0].toString(),
-            'option_a': row[1].toString(),
-            'option_b': row[2].toString(),
-            'option_c': row[3].toString(),
-            'option_d': row[4].toString(),
-            'correct_answer': row[5].toString(),
+            // Skip row[0] which is the id column
+            'question': row[1].toString(),
+            'option_a': row[2].toString(),
+            'option_b': row[3].toString(),
+            'option_c': row[4].toString(),
+            'option_d': row[5].toString(),
+            'correct_answer': row[6].toString(),
           });
           inserted++;
         }
@@ -988,7 +1141,6 @@ class DatabaseHelper {
 
       await batch.commit(noResult: true);
       print("✅ Berhasil mengimport $inserted soal ke Database!");
-
     } catch (e) {
       print("❌ Error saat import CSV: $e");
       rethrow;

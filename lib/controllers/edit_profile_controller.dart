@@ -1,11 +1,13 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:focustalk_app/services/api_service.dart';
 
 class EditProfileController extends GetxController {
   final ApiService _apiService = ApiService();
+  final ImagePicker _imagePicker = ImagePicker();
 
   // Form controllers
   final nameController = TextEditingController();
@@ -126,17 +128,48 @@ class EditProfileController extends GetxController {
         // Update local SharedPreferences with new data
         await _updateLocalStorage(updatedUserData);
 
-        // Show success message
-        Get.snackbar(
-          'Success',
-          'Profile updated successfully!',
-          backgroundColor: Colors.green,
-        );
+        // Ensure SharedPreferences is fully committed before continuing
+        await Future.delayed(const Duration(milliseconds: 100));
 
         // Clear password field for security
         passwordController.clear();
 
-        // Go back to previous screen
+        // Reset loading state before showing dialog
+        isLoading.value = false;
+
+        // Show success dialog
+        await Get.dialog(
+          AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(15),
+            ),
+            title: Row(
+              children: [
+                Icon(Icons.check_circle, color: Colors.green, size: 28),
+                const SizedBox(width: 10),
+                const Text('Success'),
+              ],
+            ),
+            content: const Text('Profile updated successfully!'),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Get.back(); // Close dialog
+                },
+                child: Text(
+                  'OK',
+                  style: TextStyle(
+                    color: Colors.orange.shade800,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          barrierDismissible: false,
+        );
+
+        // Navigate back to profile screen after dialog is closed
         Get.back(result: true); // Return true to indicate success
       } else {
         throw Exception('Failed to update profile');
@@ -144,15 +177,42 @@ class EditProfileController extends GetxController {
     } catch (e) {
       print('❌ Save changes error: $e');
 
-      // Show error message
-      Get.snackbar(
-        'Error',
-        e.toString().replaceAll('Exception: ', ''),
-        backgroundColor: Colors.red,
-      );
-    } finally {
-      // Always reset loading state
+      // Reset loading state
       isLoading.value = false;
+
+      // Show error dialog
+      await Get.dialog(
+        AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(15),
+          ),
+          title: Row(
+            children: [
+              Icon(Icons.error, color: Colors.red, size: 28),
+              const SizedBox(width: 10),
+              const Text('Error'),
+            ],
+          ),
+          content: Text(e.toString().replaceAll('Exception: ', '')),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Get.back(); // Close dialog
+              },
+              child: Text(
+                'OK',
+                style: TextStyle(
+                  color: Colors.orange.shade800,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        ),
+        barrierDismissible: false,
+      );
+
+      // Do NOT navigate back on error - let user try again
     }
   }
 
@@ -192,13 +252,61 @@ class EditProfileController extends GetxController {
     }
   }
 
-  /// Pick image from gallery (you'll need image_picker package)
-  /// This is a placeholder - implement based on your image picker logic
-  void pickImage(File? image) {
-    if (image != null) {
-      selectedImage.value = image;
-      print('✅ Image selected: ${image.path}');
+  /// Pick image from gallery or camera
+  Future<void> pickImage({ImageSource source = ImageSource.gallery}) async {
+    try {
+      final XFile? pickedFile = await _imagePicker.pickImage(
+        source: source,
+        maxWidth: 1024,
+        maxHeight: 1024,
+        imageQuality: 85,
+      );
+
+      if (pickedFile != null) {
+        selectedImage.value = File(pickedFile.path);
+        print('✅ Image selected: ${pickedFile.path}');
+      } else {
+        print('⚠️ No image selected');
+      }
+    } catch (e) {
+      print('❌ Error picking image: $e');
+      Get.snackbar(
+        'Error',
+        'Failed to pick image: ${e.toString()}',
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
     }
+  }
+
+  /// Show image source selection dialog
+  Future<void> showImageSourceDialog() async {
+    await Get.dialog(
+      AlertDialog(
+        title: const Text('Choose Image Source'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo_library, color: Colors.blue),
+              title: const Text('Gallery'),
+              onTap: () {
+                Get.back();
+                pickImage(source: ImageSource.gallery);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.camera_alt, color: Colors.green),
+              title: const Text('Camera'),
+              onTap: () {
+                Get.back();
+                pickImage(source: ImageSource.camera);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   /// Remove selected image

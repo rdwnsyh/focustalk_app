@@ -10,12 +10,12 @@ class AuthService {
 
   // Laptop's local IP address (found via ipconfig)
   // Both phone and laptop must be on the same WiFi network
-  static const String _baseUrl = 'http://192.168.101.37:8000';
+  static const String _baseUrl = 'http://192.168.1.10:8000';
 
-  // TODO: Replace with your Google Cloud Console WEB Client ID
+  // Google Cloud Console WEB Client ID
   // Get this from: https://console.cloud.google.com/apis/credentials
   static const String _serverClientId =
-      '970950673922-5mecnlsjs82007ji8tp87ba9153tl22i.apps.googleusercontent.com';
+      '383786989370-tegl1qqrjaj72u313k8tok1peojo9fao.apps.googleusercontent.com';
 
   // ===========================
   // GOOGLE SIGN-IN INSTANCE

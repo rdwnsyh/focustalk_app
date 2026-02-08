@@ -3,7 +3,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'package:focustalk_app/services/auth_service.dart';
 import 'package:focustalk_app/services/database_helper.dart';
-// import 'package:focustalk_app/screens/edit_profile_screen.dart';
+import 'package:focustalk_app/screens/edit_profile_screen.dart';
+import 'package:focustalk_app/screens/notification_settings_screen.dart';
 import 'login_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -288,24 +289,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       title: 'Edit Profile',
                       color: Colors.blue,
                       onTap: () async {
-                        // TODO: Uncomment when EditProfileScreen is created
-                        // final result = await Navigator.push(
-                        //   context,
-                        //   MaterialPageRoute(
-                        //     builder: (context) => const EditProfileScreen(),
-                        //   ),
-                        // );
-                        // if (result == true && mounted) {
-                        //   _loadUserData();
-                        // }
-
-                        // Temporary: Show coming soon message
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Edit Profile feature coming soon!'),
-                            backgroundColor: Colors.orange,
+                        final result = await Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const EditProfileScreen(),
                           ),
                         );
+                        // Reload profile data if changes were saved
+                        if (result == true && mounted) {
+                          _loadUserData();
+                        }
                       },
                     ),
                     _buildDivider(),
@@ -314,11 +307,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       title: 'Notifications',
                       color: Colors.orange,
                       onTap: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text(
-                              '🔔 Notification settings coming soon',
-                            ),
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder:
+                                (context) => const NotificationSettingsScreen(),
                           ),
                         );
                       },
