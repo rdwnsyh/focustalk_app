@@ -1,67 +1,117 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+class MaterialModel {
+  final int id;
+  final String category;
+  final String title;
+  final String duration;
+  final String level;
+  final IconData icon;
+  final Color themeColor;
+  final RxBool isDownloading;
+  final RxBool isDownloaded;
+
+  MaterialModel({
+    required this.id,
+    required this.category,
+    required this.title,
+    required this.duration,
+    required this.level,
+    required this.icon,
+    required this.themeColor,
+    bool isDownloading = false,
+    bool isDownloaded = false,
+  })  : isDownloading = isDownloading.obs,
+        isDownloaded = isDownloaded.obs;
+}
+
 class MaterialController extends GetxController {
+  final List<MaterialModel> allMaterials = <MaterialModel>[
+    MaterialModel(
+      id: 1,
+      category: 'GRAMMAR',
+      title: 'Simple Present Tense',
+      duration: '15 Mins',
+      level: 'Beginner',
+      icon: Icons.access_time_filled,
+      themeColor: Colors.blue,
+    ),
+    MaterialModel(
+      id: 2,
+      category: 'VOCABULARY',
+      title: 'Business Vocabulary',
+      duration: '20 Mins',
+      level: 'Intermediate',
+      icon: Icons.work_rounded,
+      themeColor: Colors.teal,
+    ),
+    MaterialModel(
+      id: 3,
+      category: 'EXAM PREP',
+      title: 'TOEFL Listening',
+      duration: '25 Mins',
+      level: 'Advanced',
+      icon: Icons.headphones_rounded,
+      themeColor: Colors.deepPurple,
+    ),
+    MaterialModel(
+      id: 4,
+      category: 'PRONUNCIATION',
+      title: 'Minimal Pairs Drill',
+      duration: '10 Mins',
+      level: 'Beginner',
+      icon: Icons.record_voice_over_rounded,
+      themeColor: Colors.orange,
+    ),
+    MaterialModel(
+      id: 5,
+      category: 'WRITING',
+      title: 'Email Writing Basics',
+      duration: '18 Mins',
+      level: 'Intermediate',
+      icon: Icons.edit_rounded,
+      themeColor: Colors.redAccent,
+    ),
+  ];
+
+  final RxList<MaterialModel> filteredMaterials = <MaterialModel>[].obs;
+
   @override
   void onInit() {
     super.onInit();
-    print('✅ MaterialController initialized');
-    print('📚 Study Topics loaded: ${studyTopics.length} topics');
+    filteredMaterials.assignAll(allMaterials);
   }
 
-  // Data Materi Belajar (Bisa ditambah nanti)
-  final List<Map<String, dynamic>> studyTopics = [
-    {
-      "title": "Tenses Mastery",
-      "subtitle": "Past, Present, & Future",
-      "icon": Icons.access_time_filled,
-      "color": Colors.blueAccent,
-      "description": "Pelajari 12 bentuk waktu dalam bahasa Inggris dengan rumus dan contoh mudah."
-    },
-    {
-      "title": "Vocabulary",
-      "subtitle": "Daily Words & Nouns",
-      "icon": Icons.book,
-      "color": Colors.green,
-      "description": "Kumpulan kosakata sehari-hari yang wajib dihafal untuk pemula."
-    },
-    {
-      "title": "Grammar Rules",
-      "subtitle": "Structure & Syntax",
-      "icon": Icons.rule,
-      "color": Colors.orange,
-      "description": "Aturan tata bahasa dasar untuk menyusun kalimat yang benar."
-    },
-    {
-      "title": "Common Idioms",
-      "subtitle": "Native Expressions",
-      "icon": Icons.chat_bubble,
-      "color": Colors.purple,
-      "description": "Ungkapan unik agar bahasa Inggrismu terdengar seperti native speaker."
-    },
-    {
-      "title": "Prepositions",
-      "subtitle": "In, On, At, & More",
-      "icon": Icons.place,
-      "color": Colors.redAccent,
-      "description": "Cara penggunaan kata depan yang tepat dalam konteks kalimat."
-    },
-    {
-      "title": "Conversation",
-      "subtitle": "Speaking Practice",
-      "icon": Icons.record_voice_over,
-      "color": Colors.teal,
-      "description": "Contoh dialog percakapan untuk situasi formal dan informal."
-    },
-  ];
+  void filterMaterials(String query) {
+    final trimmedQuery = query.trim().toLowerCase();
 
-  // Fungsi saat item diklik
-  void openTopic(String title) {
-    print('🎓 Opening topic: $title');
-    // Nanti bisa diarahkan ke halaman detail PDF atau Teks
+    if (trimmedQuery.isEmpty) {
+      filteredMaterials.assignAll(allMaterials);
+      return;
+    }
+
+    final results = allMaterials.where((material) {
+      return material.title.toLowerCase().contains(trimmedQuery) ||
+          material.category.toLowerCase().contains(trimmedQuery);
+    }).toList();
+
+    filteredMaterials.assignAll(results);
+  }
+
+  Future<void> downloadFile(MaterialModel material) async {
+    if (material.isDownloading.value || material.isDownloaded.value) {
+      return;
+    }
+
+    material.isDownloading.value = true;
+    await Future.delayed(const Duration(seconds: 2));
+    material.isDownloading.value = false;
+    material.isDownloaded.value = true;
+
     Get.snackbar(
-      "Opening Material",
-      "Sedang memuat materi: $title",
+      'Download Complete',
+      'File saved to /Downloads',
       snackPosition: SnackPosition.BOTTOM,
       backgroundColor: Colors.black87,
       colorText: Colors.white,

@@ -8,11 +8,11 @@ import 'package:focustalk_app/screens/leaderboard_screen.dart';
 import 'package:focustalk_app/screens/settings_screen.dart';
 import 'package:focustalk_app/screens/apps_screen.dart';
 import 'package:focustalk_app/screens/practice_quiz_screen.dart';
+import 'package:focustalk_app/screens/material_screen.dart';
+import 'package:get/get.dart';
 import 'package:app_usage/app_usage.dart';
 import 'package:installed_apps/installed_apps.dart';
 import 'package:installed_apps/app_info.dart';
-import 'package:focustalk_app/screens/material_screen.dart';
-import 'package:get/get.dart';
 
 // Model to hold app usage data with icon
 class AppUsageWithIcon {
@@ -668,11 +668,6 @@ class _HomeScreenState extends State<HomeScreen>
 
               // SECTION C: Protection Toggle
               _buildProtectionStatusCard(),
-
-              const SizedBox(height: 20),
-
-              // SECTION C2: Material Access
-              _buildMaterialAccessCard(),
 
               const SizedBox(height: 20),
 
@@ -1529,165 +1524,124 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
-  /// SECTION C2: Material Access Card
-  Widget _buildMaterialAccessCard() {
+  /// SECTION D: Fokus Belajar Grid
+  Widget _buildQuickActionsGrid() {
+    final List<Map<String, dynamic>> items = [
+      {
+        'title': 'Materi',
+        'icon': Icons.menu_book_rounded,
+        'color': Colors.blue,
+        'onTap': () => Get.to(() => MaterialView()),
+      },
+      {
+        'title': 'Latihan',
+        'icon': Icons.edit_note_rounded,
+        'color': Colors.green,
+        'onTap': () => Get.to(() => PracticeQuizScreen()),
+      },
+      {
+        'title': 'Ranking',
+        'icon': Icons.emoji_events_rounded,
+        'color': Colors.orange,
+        'onTap': () => Get.to(() => LeaderboardScreen()),
+      },
+      {
+        'title': 'Apps',
+        'icon': Icons.block_flipped,
+        'color': Colors.red,
+        'onTap': () => Get.to(() => AppsScreen()),
+      },
+      {
+        'title': 'Settings',
+        'icon': Icons.settings_rounded,
+        'color': Colors.grey,
+        'onTap': () => Get.to(() => SettingsScreen()),
+      },
+    ];
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: GestureDetector(
-        onTap: () {
-          print('🎓 Navigating to MaterialView (via Home action)...');
-          Get.to(
-            () => const MaterialView(),
-            transition: Transition.rightToLeft,
-            duration: const Duration(milliseconds: 300),
-          );
-        },
-        child: Container(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [Color(0xFF667EEA), Color(0xFF764BA2)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.06),
+              blurRadius: 12,
+              offset: const Offset(0, 6),
             ),
-            borderRadius: BorderRadius.circular(20),
-            boxShadow: [
-              BoxShadow(
-                color: const Color(0xFF667EEA).withOpacity(0.3),
-                blurRadius: 20,
-                offset: const Offset(0, 8),
-              ),
-            ],
-          ),
-          child: Row(
-            children: [
-              // Icon Container
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: const Icon(
-                  Icons.school,
-                  color: Colors.white,
-                  size: 28,
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Padding(
+              padding: EdgeInsets.only(left: 4, bottom: 12),
+              child: Text(
+                'Fokus Belajar',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF1F2937),
                 ),
               ),
-              const SizedBox(width: 16),
-              // Text Content
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Study Materials',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Learn English topics',
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: Colors.white.withOpacity(0.9),
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ),
+            ),
+            GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: items.length,
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 4,
+                crossAxisSpacing: 12,
+                mainAxisSpacing: 12,
+                childAspectRatio: 0.75,
               ),
-              // Arrow Icon
-              const Icon(
-                Icons.arrow_forward_ios,
-                color: Colors.white,
-                size: 18,
-              ),
-            ],
-          ),
+              itemBuilder: (context, index) {
+                final item = items[index];
+                return _buildFokusBelajarItem(
+                  title: item['title'] as String,
+                  icon: item['icon'] as IconData,
+                  color: item['color'] as Color,
+                  onTap: item['onTap'] as VoidCallback,
+                );
+              },
+            ),
+          ],
         ),
       ),
     );
   }
 
-  /// SECTION D: Quick Actions Grid - REDESIGNED
-  Widget _buildQuickActionsGrid() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+  Widget _buildFokusBelajarItem({
+    required String title,
+    required IconData icon,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Padding(
-            padding: EdgeInsets.only(left: 4, bottom: 16),
-            child: Text(
-              'Quick Actions',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF1F2937),
-              ),
+          Container(
+            width: 56,
+            height: 56,
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(16),
             ),
+            child: Icon(icon, color: color, size: 28),
           ),
-          GridView.count(
-            crossAxisCount: 2,
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            mainAxisSpacing: 16,
-            crossAxisSpacing: 16,
-            childAspectRatio: 1.1,
-            children: [
-              _buildActionCard(
-                title: 'Blocked Apps',
-                icon: Icons.block_rounded,
-                color: Colors.redAccent,
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => const AppsScreen()),
-                  );
-                },
-              ),
-              _buildActionCard(
-                title: 'Allowed Apps',
-                icon: Icons.check_circle_outline_rounded,
-                color: Colors.green,
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => const AppsScreen()),
-                  );
-                },
-              ),
-              _buildActionCard(
-                title: 'Practice Quiz',
-                icon: Icons.quiz_rounded,
-                color: Colors.blue,
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const PracticeQuizScreen(),
-                    ),
-                  );
-                },
-              ),
-              _buildActionCard(
-                title: 'Settings',
-                icon: Icons.settings_rounded,
-                color: Colors.blueGrey,
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const SettingsScreen(),
-                    ),
-                  );
-                },
-              ),
-            ],
+          const SizedBox(height: 6),
+          Text(
+            title,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontSize: 12,
+              color: Colors.black87,
+            ),
           ),
         ],
       ),
