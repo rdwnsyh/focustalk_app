@@ -110,7 +110,22 @@ class _PracticeQuizScreenState extends State<PracticeQuizScreen> {
 
     final correctAnswer = _questionData!['correct_answer'] as String;
     final questionId = _questionData!['id'] as int;
-    final isCorrect = _selectedAnswer == correctAnswer;
+
+    // ===== NORMALIZED STRING COMPARISON =====
+    final selectedNormalized = _selectedAnswer!.trim().toLowerCase();
+    final correctNormalized = correctAnswer.trim().toLowerCase();
+
+    print('═════════════════════════════════════════════');
+    print('🔍 ANSWER COMPARISON DEBUG');
+    print('═════════════════════════════════════════════');
+    print('User Selected (raw):    "${_selectedAnswer}"');
+    print('User Selected (normalized): "${selectedNormalized}"');
+    print('Correct Answer (raw):   "${correctAnswer}"');
+    print('Correct Answer (normalized): "${correctNormalized}"');
+    print('Match: ${selectedNormalized == correctNormalized}');
+    print('═════════════════════════════════════════════');
+
+    final isCorrect = selectedNormalized == correctNormalized;
 
     await _dbHelper.updateStats(isCorrect);
 
@@ -123,6 +138,130 @@ class _PracticeQuizScreenState extends State<PracticeQuizScreen> {
       await _dbHelper.markQuestionAsSolved(questionId);
       await _incrementProgress();
     }
+
+    // Show feedback bottom sheet
+    _showFeedbackBottomSheet(isCorrect, correctAnswer);
+  }
+
+  void _showFeedbackBottomSheet(bool isCorrect, String correctAnswer) {
+    showModalBottomSheet(
+      context: context,
+      isDismissible: false,
+      enableDrag: false,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: const BorderRadius.only(
+              topLeft: Radius.circular(30),
+              topRight: Radius.circular(30),
+            ),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Icon
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color:
+                      isCorrect
+                          ? _colGreen.withOpacity(0.1)
+                          : _colRed.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  isCorrect ? Icons.check_circle_rounded : Icons.cancel_rounded,
+                  size: 60,
+                  color: isCorrect ? _colGreen : _colRed,
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              // Title
+              Text(
+                isCorrect ? 'Correct! 🎉' : 'Incorrect 😔',
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: isCorrect ? Colors.green.shade800 : _colRed,
+                ),
+              ),
+              const SizedBox(height: 12),
+
+              // Body Text
+              if (!isCorrect) ...[
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: _colGreen.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: _colGreen.withOpacity(0.3),
+                      width: 2,
+                    ),
+                  ),
+                  child: Column(
+                    children: [
+                      Text(
+                        'The correct answer is:',
+                        style: TextStyle(fontSize: 14, color: _textGrey),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        correctAnswer,
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.green.shade800,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 20),
+              ] else ...[
+                Text(
+                  'Keep up the great work!',
+                  style: TextStyle(fontSize: 16, color: _textGrey),
+                ),
+                const SizedBox(height: 20),
+              ],
+
+              // Button
+              SizedBox(
+                width: double.infinity,
+                height: 56,
+                child: ElevatedButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    _nextQuestion();
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: isCorrect ? _colGreen : _colOrange,
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                  ),
+                  child: Text(
+                    isCorrect ? 'Next Question' : 'Got it',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   void _nextQuestion() {
@@ -450,67 +589,12 @@ class _PracticeQuizScreenState extends State<PracticeQuizScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // Feedback Message Container
-        if (_isSubmitted)
-          Container(
-            margin: const EdgeInsets.only(bottom: 16),
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color:
-                  _isCorrect!
-                      ? _colGreen.withOpacity(0.1)
-                      : _colRed.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color:
-                    _isCorrect!
-                        ? _colGreen.withOpacity(0.3)
-                        : _colRed.withOpacity(0.3),
-              ),
-            ),
-            child: Row(
-              children: [
-                Icon(
-                  _isCorrect!
-                      ? Icons.sentiment_very_satisfied
-                      : Icons.sentiment_dissatisfied,
-                  color: _isCorrect! ? Colors.green.shade700 : _colRed,
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        _isCorrect! ? 'Correct Answer!' : 'Incorrect',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: _isCorrect! ? Colors.green.shade800 : _colRed,
-                        ),
-                      ),
-                      if (!_isCorrect!)
-                        Text(
-                          'Correct: ${_questionData!['correct_answer']}',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey.shade700,
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-
         // Main Action Button
         SizedBox(
           height: 56,
           child: ElevatedButton(
             onPressed:
-                _selectedAnswer != null
-                    ? (_isSubmitted ? _nextQuestion : _submitAnswer)
-                    : null,
+                _selectedAnswer != null && !_isSubmitted ? _submitAnswer : null,
             style: ElevatedButton.styleFrom(
               backgroundColor: _colOrange,
               foregroundColor: Colors.white,
@@ -520,9 +604,9 @@ class _PracticeQuizScreenState extends State<PracticeQuizScreen> {
                 borderRadius: BorderRadius.circular(16),
               ),
             ),
-            child: Text(
-              _isSubmitted ? 'Next Question' : 'Check Answer',
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            child: const Text(
+              'Check Answer',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
           ),
         ),

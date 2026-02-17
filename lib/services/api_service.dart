@@ -5,7 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiService {
   // Base URL - should match your FastAPI backend
-  static const String _baseUrl = 'http://192.168.1.10:8000';
+  static const String _baseUrl = 'http://10.200.8.206:8000';
 
   /// Update user profile (name, email, password, and/or profile picture)
   ///
